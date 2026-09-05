@@ -1,0 +1,130 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z1",
+    "tag": "mariupol-z1",
+    "name": "Z1 \u00b7 Central \u00b7 6,373",
+    "population": 6373,
+    "vulnerable": 2649,
+    "children": 1050,
+    "elderly": 1308,
+    "disabled": 291,
+    "damage_pct": 24,
+    "dark_pct": 76,
+    "destroyed": 15,
+    "radius": 159
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     37.5432,
+     47.0965
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z2",
+    "tag": "mariupol-z2",
+    "name": "Z2 \u00b7 Central \u00b7 8,386",
+    "population": 8386,
+    "vulnerable": 3606,
+    "children": 1342,
+    "elderly": 1845,
+    "disabled": 419,
+    "damage_pct": 0,
+    "dark_pct": 78,
+    "destroyed": 0,
+    "radius": 210
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     37.5446,
+     47.0985
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z3",
+    "tag": "mariupol-z3",
+    "name": "Z3 \u00b7 Central \u00b7 7,196",
+    "population": 7196,
+    "vulnerable": 3095,
+    "children": 1151,
+    "elderly": 1583,
+    "disabled": 361,
+    "damage_pct": 0,
+    "dark_pct": 75,
+    "destroyed": 0,
+    "radius": 180
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     37.5419,
+     47.0998
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z4",
+    "tag": "mariupol-z4",
+    "name": "Z4 \u00b7 Central \u00b7 8,806",
+    "population": 8806,
+    "vulnerable": 3784,
+    "children": 1408,
+    "elderly": 1936,
+    "disabled": 440,
+    "damage_pct": 2,
+    "dark_pct": 75,
+    "destroyed": 3,
+    "radius": 220
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     37.5449,
+     47.0928
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z5",
+    "tag": "mariupol-z5",
+    "name": "Z5 \u00b7 Central \u00b7 6,902",
+    "population": 6902,
+    "vulnerable": 2968,
+    "children": 1105,
+    "elderly": 1518,
+    "disabled": 345,
+    "damage_pct": 0,
+    "dark_pct": 77,
+    "destroyed": 0,
+    "radius": 173
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     37.5417,
+     47.0912
+    ]
+   }
+  }
+ ]
+}

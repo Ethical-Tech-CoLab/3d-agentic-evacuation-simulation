@@ -1,0 +1,120 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z1",
+    "name": "Z1 \u00b7 Strip \u00b7 north resorts \u00b7 14,200",
+    "population": 14200,
+    "vulnerable": 6248,
+    "children": 2414,
+    "elderly": 2272,
+    "disabled": 1562,
+    "damage_pct": 0,
+    "radius": 260,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -115.169,
+     36.122
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z2",
+    "name": "Z2 \u00b7 Strip \u00b7 centre \u00b7 19,800",
+    "population": 19800,
+    "vulnerable": 8712,
+    "children": 3366,
+    "elderly": 3168,
+    "disabled": 2178,
+    "damage_pct": 0,
+    "radius": 260,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -115.1725,
+     36.112
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z3",
+    "name": "Z3 \u00b7 Strip \u00b7 south resorts \u00b7 16,400",
+    "population": 16400,
+    "vulnerable": 7216,
+    "children": 2788,
+    "elderly": 2624,
+    "disabled": 1804,
+    "damage_pct": 0,
+    "radius": 260,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -115.1755,
+     36.0985
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z4",
+    "name": "Z4 \u00b7 Convention corridor \u00b7 9,100",
+    "population": 9100,
+    "vulnerable": 4004,
+    "children": 1547,
+    "elderly": 1456,
+    "disabled": 1001,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -115.153,
+     36.129
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z5",
+    "name": "Z5 \u00b7 Harmon / Koval \u00b7 7,500",
+    "population": 7500,
+    "vulnerable": 3300,
+    "children": 1275,
+    "elderly": 1200,
+    "disabled": 825,
+    "damage_pct": 0,
+    "radius": 240,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -115.165,
+     36.1055
+    ]
+   }
+  }
+ ]
+}

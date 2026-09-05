@@ -1,18 +1,124 @@
 // Agentic synthetic population.
 //
-// Every agent is drawn from a real zone cohort in data/pois.geojson (ETC
-// mariupol-evacuation-model, late Mar-Apr 2022): the published population,
-// vulnerable, children, elderly and disabled counts for the five emergency
-// zones. We never invent the demography — we only expand the published
-// aggregates into individuals, then give each individual the behavioural
-// attributes the movement model needs.
+// Every agent is drawn from a published zone cohort. We never invent the
+// demography — we expand the published aggregates into individuals, then give
+// each individual the three things the movement model needs and the aggregates
+// cannot supply: who it is, who it is travelling with, and how it behaves when
+// it is told to leave.
+//
+// The three classifications are independent axes, and it matters that they are:
+// an elderly person travelling alone and an elderly person inside a family that
+// is waiting for a son to come home are the same row in a census and completely
+// different evacuation outcomes.
+
+/* ── 1. Who they are ─────────────────────────────────────────────────────── */
 
 export const COHORTS = {
-  adult:    { label: 'Adult',            baseSpeed: 1.35, colour: [ 96, 165, 250] },
-  child:    { label: 'Child (with kin)', baseSpeed: 0.95, colour: [250, 204,  21] },
-  elderly:  { label: 'Elderly',          baseSpeed: 0.75, colour: [244, 114, 182] },
-  disabled: { label: 'Disabled',         baseSpeed: 0.55, colour: [248, 113, 113] },
+  adult:    { label: 'Adult',    baseSpeed: 1.35, colour: [ 96, 165, 250] },
+  child:    { label: 'Child',    baseSpeed: 0.95, colour: [250, 204,  21] },
+  elderly:  { label: 'Elderly',  baseSpeed: 0.75, colour: [244, 114, 182] },
+  disabled: { label: 'Disabled', baseSpeed: 0.55, colour: [248, 113, 113] },
 };
+
+/* ── 2. Who they travel with ─────────────────────────────────────────────── */
+//
+// The travel unit is the decision unit. It is what actually moves, and it moves
+// at the pace of its slowest member — which is why a city's vulnerable people
+// slow down far more of the population than their own headcount suggests.
+
+export const TRAVEL_UNITS = {
+  solo: {
+    label: 'Alone',
+    share: 0.28,
+    size: () => 1,
+    pace: 1.0,
+    // Nobody to wait for, nobody to carry: fastest, and the first to leave.
+    millingScale: 0.7,
+    colour: [148, 163, 184],
+  },
+  family: {
+    label: 'Family',
+    share: 0.44,
+    size: r => 2 + Math.floor(r() * 4),          // 2–5
+    pace: 0.80,
+    // A family will not leave until it is whole. This is the single largest
+    // source of delay in the evacuation literature and it is modelled here as
+    // a longer milling phase, not as a slower walk.
+    millingScale: 1.9,
+    colour: [250, 204, 21],
+  },
+  group: {
+    label: 'Ad-hoc group',
+    share: 0.20,
+    size: r => 3 + Math.floor(r() * 8),          // 3–10, formed on the street
+    pace: 0.86,
+    // Groups form out of people already moving, so they mill less — but they
+    // are the strongest transmitters of whatever route the crowd is taking.
+    millingScale: 0.8,
+    colour: [56, 189, 248],
+  },
+  institutional: {
+    label: 'Institutional',
+    share: 0.08,
+    size: r => 12 + Math.floor(r() * 28),        // a ward, a home, a coach
+    pace: 0.55,
+    // A care home or a hospital ward cannot self-evacuate: it waits for
+    // transport that may not come. The longest milling of any unit.
+    millingScale: 3.2,
+    colour: [167, 139, 250],
+  },
+};
+
+/* ── 3. How they behave ──────────────────────────────────────────────────── */
+//
+// Behaviour is the axis the census never records and the one that decides who
+// is still inside when the route closes. The lifecycle these drive —
+// UNAWARE → SEEKING → MILLING → EVACUATING → DONE — is the same vocabulary the
+// CoLab's Evacuation Behavior Simulator uses, deliberately.
+
+export const BEHAVIOURS = {
+  prompt: {
+    label: 'Prompt',
+    share: 0.24,
+    // Acts on the first warning it believes.
+    seek: 0.3, mill: 0.4, reluctance: 0.0, returns: 0.02,
+    colour: [74, 222, 128],
+  },
+  seeker: {
+    label: 'Information-seeker',
+    share: 0.30,
+    // Will not move until it has confirmed the warning from another source.
+    // Good information makes this fast; bad information makes it endless.
+    seek: 2.2, mill: 0.9, reluctance: 0.05, returns: 0.05,
+    colour: [56, 189, 248],
+  },
+  milling: {
+    label: 'Wait-and-see',
+    share: 0.26,
+    // Watches the neighbours. Leaves when enough others have left — which
+    // means a whole district can sit still and then move at once.
+    seek: 0.8, mill: 2.6, reluctance: 0.10, returns: 0.06,
+    colour: [251, 191, 36],
+  },
+  reluctant: {
+    label: 'Reluctant to leave',
+    share: 0.13,
+    // Will not go while it judges staying survivable: property, animals, an
+    // immobile relative, or simple disbelief. Only rising danger moves them.
+    seek: 1.0, mill: 2.0, reluctance: 0.72, returns: 0.04,
+    colour: [248, 113, 113],
+  },
+  returner: {
+    label: 'Returner',
+    share: 0.07,
+    // Leaves, then goes back — for a person, a document, an animal. Costs the
+    // agent its head start and puts it back into the hazard.
+    seek: 0.6, mill: 0.8, reluctance: 0.02, returns: 0.85,
+    colour: [244, 114, 182],
+  },
+};
+
+/* ── Sampling ────────────────────────────────────────────────────────────── */
 
 // Deterministic PRNG so a seed reproduces a run exactly.
 export function rng(seed) {
@@ -30,7 +136,13 @@ const gauss = (r, mean, sd) => {
   return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 };
 
-/** Zone features -> cohort weights that preserve the published proportions. */
+const pickShare = (table, r) => {
+  let x = r();
+  for (const [k, v] of Object.entries(table)) { x -= v.share; if (x <= 0) return k; }
+  return Object.keys(table)[0];
+};
+
+/** Zone feature -> cohort counts that preserve the published proportions. */
 export function zoneCohorts(zone) {
   const p = zone.properties;
   const child = p.children || 0, elderly = p.elderly || 0, disabled = p.disabled || 0;
@@ -47,20 +159,12 @@ function pickCohort(weights, total, r) {
 /**
  * Expand the zone aggregates into `size` agents.
  *
- * Each agent carries:
- *   zone        which published cohort it was drawn from
- *   cohort      adult | child | elderly | disabled
- *   speed       m/s on open ground, cohort mean with individual spread
- *   info        0..1 quality of what it knows about the corridor — drives how
- *               late it leaves and how readily it turns back at a rumour
- *   risk        0..1 willingness to move while the zone is under fire
- *   group       people travelling as one decision unit (a family moves at the
- *               speed of its slowest member)
- *   departure   seconds after the corridor opens that it actually sets off
- *   origin      jittered start point inside its zone radius
+ * The cohort mix is the published one. The travel-unit and behaviour mixes are
+ * modelled — they come from the evacuation-behaviour literature, not from any
+ * survey of these cities, and the app says so wherever it shows them.
  */
 export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.6,
-                                  departureSpread = 5400 }) {
+                                  warningSpread = 5400 }) {
   const r = rng(seed);
   const totals = zones.map(zoneCohorts);
   const zoneTotals = totals.map(t => t.adult + t.child + t.elderly + t.disabled);
@@ -68,41 +172,74 @@ export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.
   const agents = [];
 
   for (let i = 0; i < size; i++) {
-    // Sample the zone proportionally to its published exposed population.
     let x = r() * grand, zi = 0;
     while (zi < zoneTotals.length - 1 && (x -= zoneTotals[zi]) > 0) zi++;
     const zone = zones[zi];
     const cohort = pickCohort(totals[zi], zoneTotals[zi], r);
 
+    // A child is never alone and rarely in an ad-hoc group; someone in
+    // institutional care is disproportionately elderly or disabled.
+    let unitKey = pickShare(TRAVEL_UNITS, r);
+    if (cohort === 'child' && (unitKey === 'solo' || unitKey === 'group')) unitKey = 'family';
+    if (unitKey === 'institutional' && cohort === 'adult' && r() < 0.6) unitKey = 'family';
+    const unit = TRAVEL_UNITS[unitKey];
+
+    const behaviourKey = pickShare(BEHAVIOURS, r);
+    const behaviour = BEHAVIOURS[behaviourKey];
+
     const info = Math.min(1, Math.max(0, gauss(r, infoQuality, 0.18)));
     const risk = Math.min(1, Math.max(0, gauss(r, 0.5, 0.2)));
-    // Poor information and low risk tolerance both delay departure; heavy
-    // damage in the home zone pushes the other way (nothing left to stay for).
-    const damagePush = (zone.properties.damage_pct || 0) / 100;
-    const delay = departureSpread * (1 - info) * (1 - 0.5 * risk) * (1 - 0.4 * damagePush);
 
-    const group = cohort === 'child' ? 1 : (r() < 0.42 ? 2 + Math.floor(r() * 3) : 1);
-    const rad = (zone.properties.radius || 180) / 111320; // metres -> deg, near enough at 47N
-    const a = r() * 2 * Math.PI, d = Math.sqrt(r()) * rad;
-    const [lon, lat] = zone.geometry.coordinates;
+    // Walking speed: the individual's own pace, dragged to the unit's pace.
+    const own = Math.max(0.25, gauss(r, COHORTS[cohort].baseSpeed, 0.12));
+    const speed = own * unit.pace;
+
+    // A warning does not reach everyone at once. Better-informed agents hear
+    // it sooner; this is the only thing that happens before the lifecycle.
+    const warnedAt = Math.max(0, gauss(r, warningSpread * (1 - info) * 0.55,
+                                       warningSpread * 0.15));
 
     agents.push({
       id: i,
       zone: zone.properties.zone_id,
-      cohort,
-      speed: Math.max(0.25, gauss(r, COHORTS[cohort].baseSpeed, 0.12)),
-      info, risk, group,
-      departure: Math.max(0, gauss(r, delay, departureSpread * 0.12)),
-      origin: [lon + (d * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), lat + d * Math.sin(a)],
+      cohort, unit: unitKey, behaviour: behaviourKey,
+      speed, ownSpeed: own,
+      group: unit.size(r),
+      info, risk,
+      warnedAt,
+      // How long this agent spends confirming the warning, and then waiting on
+      // its unit and its neighbours. Both are scaled by who it travels with.
+      seekFor: Math.max(0, gauss(r, behaviour.seek * 900, behaviour.seek * 260)),
+      millFor: Math.max(0, gauss(r, behaviour.mill * 900 * unit.millingScale,
+                                 behaviour.mill * 300)),
+      // Threshold of danger above which a reluctant agent finally moves.
+      reluctance: behaviour.reluctance * (1 - 0.4 * risk),
+      // Probability this agent turns back once, mid-route.
+      returnChance: behaviour.returns,
+      origin: originIn(zone, r),
       // Runtime state, reset by the engine.
-      dist: 0, done: false, stalled: 0, turnedBack: false, exitTime: null,
+      state: 'unaware', dist: 0, done: false, turnedBack: false,
+      route: null, path: null, exitTime: null, doneAt: null, stalled: 0, returnedAt: null,
     });
   }
   return agents;
 }
 
-export function summarise(agents) {
-  const by = {};
-  for (const a of agents) by[a.cohort] = (by[a.cohort] || 0) + 1;
-  return by;
+function originIn(zone, r) {
+  const rad = (zone.properties.radius || 180) / 111320;   // metres -> deg at ~40N
+  const a = r() * 2 * Math.PI, d = Math.sqrt(r()) * rad;
+  const [lon, lat] = zone.geometry.coordinates;
+  return [lon + (d * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), lat + d * Math.sin(a)];
+}
+
+/** Counts by any classification axis, for the console readouts. */
+export function tally(agents, key) {
+  const out = {};
+  for (const a of agents) {
+    const b = (out[a[key]] ??= { n: 0, out: 0, stuck: 0 });
+    b.n++;
+    if (a.done) b.out++;
+    else if (a.state === 'unaware' || a.state === 'seeking' || a.state === 'milling') b.stuck++;
+  }
+  return out;
 }

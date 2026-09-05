@@ -1,0 +1,120 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z1",
+    "name": "Z1 \u00b7 Brickell \u00b7 32,800",
+    "population": 32800,
+    "vulnerable": 14432,
+    "children": 5576,
+    "elderly": 5248,
+    "disabled": 3608,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.193,
+     25.762
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z2",
+    "name": "Z2 \u00b7 Downtown core \u00b7 18,400",
+    "population": 18400,
+    "vulnerable": 8096,
+    "children": 3128,
+    "elderly": 2944,
+    "disabled": 2024,
+    "damage_pct": 0,
+    "radius": 280,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.191,
+     25.776
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z3",
+    "name": "Z3 \u00b7 Edgewater \u00b7 16,200",
+    "population": 16200,
+    "vulnerable": 7128,
+    "children": 2754,
+    "elderly": 2592,
+    "disabled": 1782,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.188,
+     25.794
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z4",
+    "name": "Z4 \u00b7 Port / Bayfront \u00b7 5,400",
+    "population": 5400,
+    "vulnerable": 2376,
+    "children": 918,
+    "elderly": 864,
+    "disabled": 594,
+    "damage_pct": 0,
+    "radius": 280,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.181,
+     25.779
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z5",
+    "name": "Z5 \u00b7 Little Havana edge \u00b7 21,100",
+    "population": 21100,
+    "vulnerable": 9284,
+    "children": 3587,
+    "elderly": 3376,
+    "disabled": 2321,
+    "damage_pct": 0,
+    "radius": 320,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -80.213,
+     25.769
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,120 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z1",
+    "name": "Z1 \u00b7 Financial District \u00b7 21,400",
+    "population": 21400,
+    "vulnerable": 9416,
+    "children": 3638,
+    "elderly": 3424,
+    "disabled": 2354,
+    "damage_pct": 0,
+    "radius": 320,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01,
+     40.706
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z2",
+    "name": "Z2 \u00b7 Battery Park City \u00b7 13,900",
+    "population": 13900,
+    "vulnerable": 6116,
+    "children": 2363,
+    "elderly": 2224,
+    "disabled": 1529,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.0165,
+     40.712
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z3",
+    "name": "Z3 \u00b7 Two Bridges \u00b7 16,800",
+    "population": 16800,
+    "vulnerable": 7392,
+    "children": 2856,
+    "elderly": 2688,
+    "disabled": 1848,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9945,
+     40.7115
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z4",
+    "name": "Z4 \u00b7 Lower East Side \u00b7 24,600",
+    "population": 24600,
+    "vulnerable": 10824,
+    "children": 4182,
+    "elderly": 3936,
+    "disabled": 2706,
+    "damage_pct": 0,
+    "radius": 340,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9835,
+     40.718
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "poi_type": "origin_zone",
+    "zone_id": "Z5",
+    "name": "Z5 \u00b7 Tribeca / Hudson Sq \u00b7 15,300",
+    "population": 15300,
+    "vulnerable": 6732,
+    "children": 2601,
+    "elderly": 2448,
+    "disabled": 1683,
+    "damage_pct": 0,
+    "radius": 300,
+    "modelled": true
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.008,
+     40.7215
+    ]
+   }
+  }
+ ]
+}

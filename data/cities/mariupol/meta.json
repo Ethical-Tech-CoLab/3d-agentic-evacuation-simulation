@@ -1,0 +1,25 @@
+{
+ "id": "mariupol",
+ "name": "Mariupol",
+ "country": "Ukraine",
+ "hazard": "siege",
+ "hazardLabel": "Siege \u00b7 March 2022",
+ "note": "Retrospective. Zone cohorts are the published ETC severity-model figures.",
+ "bbox": [
+  47.05,
+  37.45,
+  47.2,
+  37.65
+ ],
+ "centre": [
+  37.5432,
+  47.0972
+ ],
+ "counts": {
+  "buildings": 45544,
+  "roadWays": 5401,
+  "routes": 4,
+  "zones": 5,
+  "exposed": 37663
+ }
+}

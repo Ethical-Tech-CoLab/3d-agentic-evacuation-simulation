@@ -5,11 +5,9 @@
 // through MapboxOverlay in interleaved mode, so the extruded buildings sit in
 // the same depth buffer as the basemap's own geometry.
 
-export const CARTO_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+import { COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 
-export const INITIAL_VIEW = {
-  longitude: 37.530, latitude: 47.103, zoom: 13.3, pitch: 58, bearing: -32,
-};
+export const CARTO_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 const DAMAGE_COLOUR = [
   [250, 204, 21, 180],   // 0 possible
@@ -18,36 +16,58 @@ const DAMAGE_COLOUR = [
   [220, 38, 38, 255],    // 3 destroyed
 ];
 
-const POI_STYLE = {
-  landmark:    { colour: [226, 232, 240], radius: 90 },
-  origin_zone: { colour: [56, 189, 248], radius: 0 },
-  exit:        { colour: [74, 222, 128], radius: 0 },
-  destination: { colour: [134, 239, 172], radius: 0 },
-  filtration:  { colour: [248, 113, 113], radius: 0 },
-  danger_zone: { colour: [239, 68, 68],   radius: 0 },
-  shelter:     { colour: [125, 211, 252], radius: 0 },
+// Road classes, drawn at a width that reads their capacity.
+const ROAD_WIDTH = {
+  motorway: 9, trunk: 8, primary: 6.5, secondary: 5, tertiary: 3.6,
+  residential: 2, unclassified: 2, living_street: 1.6,
+  motorway_link: 4, trunk_link: 4, primary_link: 3.4, secondary_link: 3,
+  tertiary_link: 2.4,
 };
+const roadWidth = c => ROAD_WIDTH[c] ?? 2;
 
 /**
- * Building heights. The OSM extract for Mariupol carries no per-building
- * height, so we hash the centroid into a plausible Soviet-plan skyline —
- * mostly 5-storey khrushchyovka stock with taller blocks along the centre.
- * This is deliberately *illustrative geometry*, flagged as such in the legend.
+ * Building heights. The OSM extracts carry no per-building height, so we hash
+ * the centroid into a plausible skyline — denser and taller toward the city
+ * centre. Deliberately *illustrative geometry*, flagged as such in the legend.
  */
-export function hashedHeight([lon, lat]) {
-  const h = Math.abs(Math.sin(lon * 12.9898 + lat * 78.233) * 43758.5453) % 1;
-  const centre = Math.hypot(lon - 37.5432, lat - 47.0972);
-  const urban = Math.max(0, 1 - centre / 0.045);
-  return 9 + h * 12 + urban * (h < 0.82 ? 8 : 42);
+export function makeHeight(centre) {
+  const [clon, clat] = centre;
+  return ([lon, lat]) => {
+    const h = Math.abs(Math.sin(lon * 12.9898 + lat * 78.233) * 43758.5453) % 1;
+    const d = Math.hypot(lon - clon, lat - clat);
+    const urban = Math.max(0, 1 - d / 0.045);
+    return 9 + h * 12 + urban * (h < 0.82 ? 8 : 42);
+  };
 }
 
-export function baseLayers(deck, { buildings, damage, pois, corridor, showBuildings, showDamage }) {
-  const { ColumnLayer, ScatterplotLayer, PathLayer, TextLayer } = deck;
-  const zones = pois.features.filter(f => f.properties.poi_type === 'origin_zone');
-  const marks = pois.features.filter(f => f.properties.poi_type !== 'origin_zone');
+export const COLOUR_BY = {
+  cohort: { table: COHORTS, key: 'cohort', label: 'Who they are' },
+  unit: { table: TRAVEL_UNITS, key: 'unit', label: 'Who they travel with' },
+  behaviour: { table: BEHAVIOURS, key: 'behaviour', label: 'How they behave' },
+  route: { table: null, key: 'route', label: 'Route taken' },
+};
 
-  return [
-    showBuildings && new ColumnLayer({
+export function baseLayers(deck, ctx) {
+  const { ColumnLayer, ScatterplotLayer, PathLayer, TextLayer } = deck;
+  const { city, zones, routes, damage, buildings, roads, show, height } = ctx;
+  const layers = [];
+
+  if (show.roads) {
+    layers.push(new PathLayer({
+      id: 'roads',
+      data: roads,
+      getPath: d => d.coords,
+      getColor: d => (roadWidth(d.cls) >= 6 ? [110, 130, 158, 190] : [72, 88, 110, 150]),
+      getWidth: d => roadWidth(d.cls),
+      widthMinPixels: 0.6,
+      widthMaxPixels: 8,
+      capRounded: true,
+      jointRounded: true,
+    }));
+  }
+
+  if (show.buildings) {
+    layers.push(new ColumnLayer({
       id: 'buildings',
       data: buildings,
       diskResolution: 4,
@@ -56,17 +76,17 @@ export function baseLayers(deck, { buildings, damage, pois, corridor, showBuildi
       extruded: true,
       elevationScale: 1.6,
       getPosition: d => d,
-      getElevation: hashedHeight,
+      getElevation: height,
       getFillColor: d => {
-        const h = hashedHeight(d);
-        const v = 58 + Math.min(h, 60) * 1.7;
+        const v = 58 + Math.min(height(d), 60) * 1.7;
         return [v * 0.66, v * 0.76, v];
       },
-      opacity: 0.85,
-      pickable: false,
-    }),
+      opacity: 0.82,
+    }));
+  }
 
-    showDamage && new ScatterplotLayer({
+  if (show.damage && damage.length) {
+    layers.push(new ScatterplotLayer({
       id: 'damage',
       data: damage,
       getPosition: d => [d[0], d[1]],
@@ -75,68 +95,74 @@ export function baseLayers(deck, { buildings, damage, pois, corridor, showBuildi
       radiusMinPixels: 2,
       radiusMaxPixels: 5,
       stroked: false,
-      pickable: true,
-      onHover: () => {},
-    }),
+    }));
+  }
 
-    // The five published emergency-zone cohorts, sized by exposed population.
-    new ScatterplotLayer({
-      id: 'zones',
-      data: zones,
-      getPosition: f => f.geometry.coordinates,
-      getRadius: f => f.properties.radius || 180,
-      getFillColor: [56, 189, 248, 34],
-      getLineColor: [56, 189, 248, 190],
-      lineWidthMinPixels: 1.5,
-      stroked: true,
-      filled: true,
-      pickable: true,
-    }),
+  // The evacuation routes — every one a real path over the road graph.
+  layers.push(new PathLayer({
+    id: 'routes',
+    data: routes,
+    getPath: r => r.coords,
+    getColor: r => (r.open ? [...r.colour, 225] : [110, 118, 130, 120]),
+    getWidth: 26,
+    widthMinPixels: 3,
+    widthMaxPixels: 12,
+    capRounded: true,
+    jointRounded: true,
+    updateTriggers: { getColor: routes.map(r => r.open).join() },
+  }));
 
-    new ScatterplotLayer({
-      id: 'markers',
-      data: marks,
-      getPosition: f => f.geometry.coordinates,
-      getRadius: f => f.properties.radius || POI_STYLE[f.properties.poi_type]?.radius || 120,
-      getFillColor: f => [...(POI_STYLE[f.properties.poi_type]?.colour || [200, 200, 200]), 40],
-      getLineColor: f => [...(POI_STYLE[f.properties.poi_type]?.colour || [200, 200, 200]), 220],
-      lineWidthMinPixels: 1.5,
-      stroked: true,
-      filled: true,
-      pickable: true,
-    }),
+  layers.push(new ScatterplotLayer({
+    id: 'route-exits',
+    data: routes,
+    getPosition: r => r.coords[r.coords.length - 1],
+    getRadius: 130,
+    radiusMinPixels: 4,
+    getFillColor: r => [...r.colour, 60],
+    getLineColor: r => [...r.colour, 235],
+    lineWidthMinPixels: 2,
+    stroked: true,
+  }));
 
-    new TextLayer({
-      id: 'labels',
-      data: marks,
-      getPosition: f => f.geometry.coordinates,
-      getText: f => f.properties.name,
-      getSize: 11,
-      getColor: f => POI_STYLE[f.properties.poi_type]?.colour || [230, 230, 230],
-      getPixelOffset: [0, -16],
-      fontFamily: 'ui-monospace, monospace',
-      background: true,
-      getBackgroundColor: [10, 14, 20, 190],
-      backgroundPadding: [4, 2],
-      characterSet: 'auto',
-    }),
+  layers.push(new ScatterplotLayer({
+    id: 'zones',
+    data: zones,
+    getPosition: f => f.geometry.coordinates,
+    getRadius: f => f.properties.radius || 180,
+    getFillColor: [56, 189, 248, 30],
+    getLineColor: [56, 189, 248, 180],
+    lineWidthMinPixels: 1.5,
+    stroked: true,
+  }));
 
-    new PathLayer({
-      id: 'corridor',
-      data: [corridor],
-      getPath: d => d,
-      getColor: [74, 222, 128, 200],
-      getWidth: 22,
-      widthMinPixels: 3,
-      capRounded: true,
-      jointRounded: true,
-    }),
-  ].filter(Boolean);
+  layers.push(new TextLayer({
+    id: 'labels',
+    data: [
+      ...routes.map(r => ({ text: r.name, at: r.coords[r.coords.length - 1], colour: r.colour })),
+      ...zones.map(z => ({ text: z.properties.name, at: z.geometry.coordinates, colour: [125, 211, 252] })),
+    ],
+    getPosition: d => d.at,
+    getText: d => d.text,
+    getSize: 11,
+    getColor: d => d.colour,
+    getPixelOffset: [0, -15],
+    fontFamily: 'ui-monospace, monospace',
+    background: true,
+    getBackgroundColor: [8, 12, 18, 200],
+    backgroundPadding: [4, 2],
+    characterSet: 'auto',
+  }));
+
+  return layers;
 }
 
-export function agentLayers(deck, { live, trails, showTrails, time }) {
-  const { ScatterplotLayer } = deck;
+export function agentLayers(deck, { live, trails, showTrails, time, colourBy }) {
   const layers = [];
+  const spec = COLOUR_BY[colourBy];
+  const colourOf = d => {
+    if (colourBy === 'route') return d.routeColour;
+    return spec.table[d[spec.key]]?.colour || [200, 200, 200];
+  };
 
   if (showTrails && trails.length) {
     layers.push(new deck.TripsLayer({
@@ -152,15 +178,17 @@ export function agentLayers(deck, { live, trails, showTrails, time }) {
     }));
   }
 
-  layers.push(new ScatterplotLayer({
+  layers.push(new deck.ScatterplotLayer({
     id: 'agents',
     data: live,
     getPosition: d => d.position,
-    getFillColor: d => (d.done ? [...d.colour, 70] : [...d.colour, 235]),
-    getRadius: d => 14 + d.group * 4,
+    getFillColor: d => (d.done ? [...colourOf(d), 60] : [...colourOf(d), 235]),
+    // A travel unit is drawn at a size that reads its headcount, so an
+    // institutional unit of thirty is visibly not one person.
+    getRadius: d => 12 + Math.sqrt(d.group) * 7,
     radiusMinPixels: 1.6,
-    radiusMaxPixels: 7,
-    updateTriggers: { getPosition: time, getFillColor: time },
+    radiusMaxPixels: 6,
+    updateTriggers: { getPosition: time, getFillColor: `${time}|${colourBy}` },
   }));
 
   return layers;

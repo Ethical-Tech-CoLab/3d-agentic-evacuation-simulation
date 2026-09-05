@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mariupol 3D — agentic evacuation twin</title>
-<meta name="description" content="A browser 3-D twin of Mariupol on a CARTO basemap, with an agentic synthetic population walking the March 2022 humanitarian corridor.">
+<title>Evacuation Twin — Mariupol, New York, Las Vegas, Miami</title>
+<meta name="description" content="Browser 3-D evacuation twins of four cities on a CARTO basemap. An agentic synthetic population, classified by who they are, who they travel with and how they behave, chooses between real road-routed evacuation routes.">
 <link rel="icon" href="etc-icon.svg">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <link rel="stylesheet" href="src/style.css">
@@ -13,8 +13,8 @@
 <div id="map"></div>
 
 <header id="titlebar">
-  <h1>Mariupol&nbsp;3D</h1>
-  <p>Agentic evacuation twin · March 2022 · <span class="muted">retrospective, open data, non-operational</span></p>
+  <h1 id="cityName">Mariupol&nbsp;3D</h1>
+  <p id="cityHazard">Agentic evacuation twin · <span class="muted">open data, non-operational</span></p>
 </header>
 
 <section id="console" aria-label="Simulation console">
@@ -25,42 +25,74 @@
   </div>
 
   <fieldset>
+    <legend>City</legend>
+    <select id="city"></select>
+    <p id="cityNote" class="note"></p>
+  </fieldset>
+
+  <fieldset>
     <legend>Synthetic population</legend>
     <label>Agents <output id="sizeOut">6,000</output>
       <input id="size" type="range" min="500" max="20000" step="500" value="6000"></label>
     <label>Information quality <output id="infoOut">0.60</output>
       <input id="info" type="range" min="0" max="1" step="0.05" value="0.6"></label>
-    <label>Departure spread <output id="spreadOut">90 min</output>
+    <label>Warning spread <output id="spreadOut">90 min</output>
       <input id="spread" type="range" min="15" max="360" step="15" value="90"></label>
     <label>Seed <input id="seed" type="number" value="20220316" step="1"></label>
   </fieldset>
 
   <fieldset>
-    <legend>Corridor</legend>
-    <label>Capacity <output id="capOut">900 /min</output>
+    <legend>Conditions</legend>
+    <label>Route capacity <output id="capOut">900 /min</output>
       <input id="cap" type="range" min="100" max="3000" step="100" value="900"></label>
-    <label>Hazard along the in-city leg <output id="hazOut">0.35</output>
+    <label>Hazard <output id="hazOut">0.35</output>
       <input id="haz" type="range" min="0" max="1" step="0.05" value="0.35"></label>
-    <label class="check"><input id="open" type="checkbox" checked> Corridor is open</label>
+    <label>Crowd-following <output id="herdOut">0.35</output>
+      <input id="herd" type="range" min="0" max="1" step="0.05" value="0.35"></label>
     <label>Speed <output id="tsOut">120×</output>
       <input id="ts" type="range" min="10" max="600" step="10" value="120"></label>
   </fieldset>
 
   <fieldset>
+    <legend>Routes — click to close one</legend>
+    <div id="routeList" class="routes"></div>
+  </fieldset>
+
+  <fieldset>
     <legend>Scene</legend>
-    <label class="check"><input id="bld" type="checkbox" checked> Buildings (45,544 OSM)</label>
-    <label class="check"><input id="dmg" type="checkbox" checked> UNOSAT damage (783)</label>
+    <label class="check"><input id="bld" type="checkbox" checked> Buildings</label>
+    <label class="check"><input id="rds" type="checkbox" checked> Road network</label>
+    <label class="check"><input id="dmg" type="checkbox" checked> Damage points</label>
     <label class="check"><input id="trl" type="checkbox" checked> Agent trails</label>
   </fieldset>
 
+</section>
+
+
+<section id="readout" aria-label="Results">
   <div id="stats" class="stats"></div>
-  <div id="cohorts" class="cohorts"></div>
+
+  <fieldset>
+    <legend>Lifecycle</legend>
+    <div id="lifecycle" class="lifecycle"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Classification — colours the map</legend>
+    <div class="tabs" id="tabs">
+      <button data-axis="cohort" class="on">Who they are</button>
+      <button data-axis="unit">Who with</button>
+      <button data-axis="behaviour">Behaviour</button>
+      <button data-axis="route">Route</button>
+    </div>
+    <div id="breakdown" class="cohorts"></div>
+  </fieldset>
 </section>
 
 <footer id="credits">
   Basemap © <a href="https://carto.com/about-carto/">CARTO</a>, data ©
   <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ·
-  damage points UNITAR/UNOSAT CE20220223UKR ·
+  roads and buildings from OpenStreetMap · damage points UNITAR/UNOSAT CE20220223UKR ·
   cohorts from <a href="https://github.com/Ethical-Tech-CoLab/mariupol-evacuation-model">ETC mariupol-evacuation-model</a> ·
   agent model after <a href="https://github.com/GoogleCloudPlatform/race-condition">Race&nbsp;Condition</a>
 </footer>

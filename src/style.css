@@ -77,3 +77,47 @@ input[type=number] { width: 100%; margin-top: 3px; padding: 4px 6px; border-radi
 @media (max-width: 760px) { #credits { display: none; } }
 
 .maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* ── multi-city console additions ─────────────────────────────────────────── */
+
+select {
+  width: 100%; padding: 6px 8px; border-radius: 6px; font: inherit; font-size: 12px;
+  border: 1px solid var(--line); background: #0d141d; color: var(--ink);
+}
+.note { margin: 7px 0 0; font-size: 10.5px; line-height: 1.45; color: var(--muted); }
+
+.routes { display: grid; gap: 4px; }
+button.route {
+  display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center;
+  gap: 7px; width: 100%; padding: 5px 7px; font-weight: 400; font-size: 11px;
+  text-align: left; background: #0d141d;
+}
+button.route .rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.route .rlen { font: 10px ui-monospace, monospace; color: var(--muted); }
+button.route .rtaken { font: 10px ui-monospace, monospace; color: var(--accent); min-width: 34px; text-align: right; }
+button.route.closed { opacity: 0.42; }
+button.route.closed .rname { text-decoration: line-through; }
+button.route.closed .rtaken { color: var(--muted); }
+
+.lifecycle { display: grid; gap: 4px; }
+.life { display: grid; grid-template-columns: 128px 1fr 40px; align-items: center; gap: 6px; font-size: 10.5px; }
+.life .lname { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.life .bar { height: 5px; border-radius: 3px; background: #17212e; overflow: hidden; }
+.life .bar i { display: block; height: 100%; background: var(--accent); }
+
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 8px; }
+.tabs button { padding: 4px 2px; font-size: 9.5px; font-weight: 500; letter-spacing: 0.02em; }
+.tabs button.on { background: #123524; border-color: rgba(74, 222, 128, 0.5); color: var(--accent); }
+
+.cohort .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The results panel. Controls live on the right, what they produced on the
+   left, so a change and its consequence are visible at the same time. */
+#readout {
+  position: absolute; left: 16px; top: 108px; z-index: 2; width: 306px;
+  max-height: calc(100vh - 200px); overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; backdrop-filter: blur(8px);
+}
+#readout fieldset:last-child { margin-bottom: 0; }
+@media (max-width: 1100px) { #readout { display: none; } }

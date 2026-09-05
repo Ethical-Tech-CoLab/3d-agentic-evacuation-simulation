@@ -1,0 +1,25 @@
+{
+ "id": "miami",
+ "name": "Downtown Miami & Brickell",
+ "country": "United States",
+ "hazard": "hurricane",
+ "hazardLabel": "Hurricane \u00b7 Zone A",
+ "note": "Illustrative. Footprint of Miami-Dade evacuation Zone A; population is modelled, not surveyed.",
+ "bbox": [
+  25.745,
+  -80.225,
+  25.805,
+  -80.165
+ ],
+ "centre": [
+  -80.193,
+  25.7745
+ ],
+ "counts": {
+  "buildings": 14052,
+  "roadWays": 3974,
+  "routes": 4,
+  "zones": 5,
+  "exposed": 93900
+ }
+}

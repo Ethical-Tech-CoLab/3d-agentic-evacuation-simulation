@@ -1,0 +1,25 @@
+{
+ "id": "nyc",
+ "name": "Lower Manhattan",
+ "country": "United States",
+ "hazard": "surge",
+ "hazardLabel": "Coastal storm surge \u00b7 Zone 1",
+ "note": "Illustrative. Footprint of NYC OEM hurricane evacuation Zone 1; population is modelled, not surveyed.",
+ "bbox": [
+  40.7,
+  -74.021,
+  40.752,
+  -73.968
+ ],
+ "centre": [
+  -73.9905,
+  40.724
+ ],
+ "counts": {
+  "buildings": 17770,
+  "roadWays": 4138,
+  "routes": 5,
+  "zones": 5,
+  "exposed": 92000
+ }
+}

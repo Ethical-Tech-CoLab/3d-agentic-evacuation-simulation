@@ -49,19 +49,67 @@ back.
 evacuated is a weak metric. The console foregrounds **50th and 90th percentile
 clearance time**, which is what moves when capacity or opening hours change.
 
+## 2b. The three classification axes
+
+**Who they are** (cohort) is the published split for Mariupol and a US-urban
+profile (17% children, 16% elderly, 11% disabled) for the other three, stated as
+modelled everywhere it is shown.
+
+**Who they travel with** (alone 28% / family 44% / ad-hoc group 20% /
+institutional 8%) and **how they behave** (prompt 24% / information-seeker 30% /
+wait-and-see 26% / reluctant 13% / returner 7%) are modelled in all four cities.
+The shares are drawn from the evacuation-behaviour literature's broad findings —
+that family reunification dominates delay, that most people seek confirmation
+before acting, that a persistent minority does not leave — not from any survey
+of these populations. They are round numbers, and should be read as a structure
+to reason with rather than a measurement.
+
+Two constraints are applied after sampling, because the independent draws
+produce impossible people otherwise: a child is never alone or in an ad-hoc
+group, and an adult in institutional care is usually reassigned to a family.
+
+## 2c. Route choice
+
+Each agent estimates, for every open route, the time it would cost: the walk to
+its nearest entry point on that route, plus the remaining route length at its
+own pace, plus expected queueing. Expected queueing is everyone already
+committed to the route and not yet out, divided by the route's capacity, scaled
+by the agent's information quality — a badly-informed agent simply cannot see
+the queue it is about to join.
+
+Two further terms stop the model collapsing into one route, which is the failure
+mode of a naive shortest-path assignment and the thing real evacuations never do:
+
+- **Idiosyncratic preference** — a per-agent multiplicative bias on each route,
+  centred on 1. The road you know, the direction your family lives in, the
+  bridge you have always used.
+- **Crowd-following** — a pull toward whatever route is already popular,
+  strongest in badly-informed agents and in ad-hoc groups, which form out of
+  people already moving. This is the mechanism by which an overloaded route
+  keeps attracting people, and it is exposed as a slider.
+
 ## 3. Illustrative — geometry that looks right but was not surveyed
 
 - **Building heights.** The OSM extract carries no per-building height. Heights
   are hashed from the centroid into a plausible Soviet-plan skyline — mostly
   5-storey stock, taller blocks toward the centre. The *positions* are real; the
   *heights* are not.
-- **The corridor line.** A representative EXIT WEST → Zaporizhzhia-direction
-  `LineString`, not the georeferenced OCHA/ICRC route via Manhush–Berdyansk–
-  Tokmak–Vasylivka. Replacing `data/route.geojson` with the real polyline needs
-  no code change.
-- **Zone marker placement.** The five markers sit in the real city centre at
-  positions chosen for the model, not at surveyed cell centroids. Their
-  *attributes* are the published ones.
+- **Which exits are designated.** The routes themselves are real paths over the
+  real road graph, computed by `tools/fetch_city.py` — nothing about them is
+  drawn by hand. But *which* egress points count as evacuation exits is a
+  judgement made in that script's `EXITS` table. For Mariupol they are the four
+  real directions out of the encirclement, including the eastward
+  filtration-bound one, which is an exit from the city and not an exit to
+  safety. For the other three they are the obvious real crossings and arterials,
+  not the official designations of NYC OEM or Miami-Dade.
+- **Where routes start.** All routes for a city are measured from the
+  population-weighted centroid of its origin zones, so their lengths are
+  comparable. A route measured from whichever zone happens to sit next to an
+  exit would flatter that exit.
+- **Zone marker placement.** Mariupol's five markers sit in the real city centre
+  at positions chosen for the model, not at surveyed cell centroids; their
+  *attributes* are the published ones. The other cities' zones are named after
+  real neighbourhoods and placed on them, but their populations are modelled.
 
 ## 4. What this is not
 

@@ -1,0 +1,25 @@
+{
+ "id": "vegas",
+ "name": "Las Vegas Strip",
+ "country": "United States",
+ "hazard": "crowd",
+ "hazardLabel": "Mass-gathering egress",
+ "note": "Illustrative. The upstream Race Condition marathon corridor, read as a crowd-egress problem.",
+ "bbox": [
+  36.08,
+  -115.19,
+  36.135,
+  -115.145
+ ],
+ "centre": [
+  -115.172,
+  36.1055
+ ],
+ "counts": {
+  "buildings": 2607,
+  "roadWays": 2971,
+  "routes": 4,
+  "zones": 5,
+  "exposed": 67000
+ }
+}

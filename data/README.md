@@ -1,3 +1,10 @@
+> **Layout note.** Each city now ships as a pack under `data/cities/<id>/`
+> — `buildings.json`, `roads.json`, `zones.geojson`, `routes.geojson`,
+> `meta.json`. The files described below are Mariupol's, and `pois.geojson`
+> remains the provenance record for its five published cohorts; the routes
+> are now real road paths built by `tools/fetch_city.py` rather than the
+> single schematic corridor in `route.geojson`.
+
 # Mariupol Site Pack data (real open data + schematic corridor)
 
 These files back the schematic Mariupol scenario (`?scenario=mariupol`). The
@@ -7,9 +14,9 @@ remain schematic.
 
 | File | What it is |
 |---|---|
-| `buildings.json` | **Real** — 45,544 OSM building centroids (`[lon,lat]` tuples) from the ETC `mariupol_lights.json`; heights are hashed for skyline variation (no per-building height in the source). |
-| `damage.json` | **Real** — 783 UNITAR/UNOSAT verified damage points (14 Mar 2022, code CE20220223UKR) as `[lon,lat,severity]` (0 possible → 3 destroyed). |
-| `route.geojson` | Schematic evacuation-corridor `LineString` (EXIT WEST → Zaporizhzhia direction). |
+| `cities/mariupol/buildings.json` | **Real** — 45,544 OSM building centroids (`[lon,lat]` tuples) from the ETC `mariupol_lights.json`; heights are hashed for skyline variation (no per-building height in the source). |
+| `cities/mariupol/damage.json` | **Real** — 783 UNITAR/UNOSAT verified damage points (14 Mar 2022, code CE20220223UKR) as `[lon,lat,severity]` (0 possible → 3 destroyed). |
+| `route.geojson` *(superseded)* | Schematic evacuation-corridor `LineString` (EXIT WEST → Zaporizhzhia direction). |
 | `pois.geojson` | The **five real emergency-zone cohorts** (captured population/vulnerable/child/elderly/disabled + damage/dark/destroyed + a `tag`), plus EXIT WEST, the Zaporizhzhia destination, Bezimenne filtration, Azovstal, and a shelter. |
 
 ## Captured (real) data now in the pack
