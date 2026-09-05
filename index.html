@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mariupol 3D — agentic evacuation twin</title>
+<meta name="description" content="A browser 3-D twin of Mariupol on a CARTO basemap, with an agentic synthetic population walking the March 2022 humanitarian corridor.">
+<link rel="icon" href="etc-icon.svg">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div id="map"></div>
+
+<header id="titlebar">
+  <h1>Mariupol&nbsp;3D</h1>
+  <p>Agentic evacuation twin · March 2022 · <span class="muted">retrospective, open data, non-operational</span></p>
+</header>
+
+<section id="console" aria-label="Simulation console">
+  <div class="row head">
+    <button id="play" class="primary">▶ Run</button>
+    <button id="reset">Reset</button>
+    <span id="clock" class="clock">T+00:00</span>
+  </div>
+
+  <fieldset>
+    <legend>Synthetic population</legend>
+    <label>Agents <output id="sizeOut">6,000</output>
+      <input id="size" type="range" min="500" max="20000" step="500" value="6000"></label>
+    <label>Information quality <output id="infoOut">0.60</output>
+      <input id="info" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+    <label>Departure spread <output id="spreadOut">90 min</output>
+      <input id="spread" type="range" min="15" max="360" step="15" value="90"></label>
+    <label>Seed <input id="seed" type="number" value="20220316" step="1"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Corridor</legend>
+    <label>Capacity <output id="capOut">900 /min</output>
+      <input id="cap" type="range" min="100" max="3000" step="100" value="900"></label>
+    <label>Hazard along the in-city leg <output id="hazOut">0.35</output>
+      <input id="haz" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+    <label class="check"><input id="open" type="checkbox" checked> Corridor is open</label>
+    <label>Speed <output id="tsOut">120×</output>
+      <input id="ts" type="range" min="10" max="600" step="10" value="120"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Scene</legend>
+    <label class="check"><input id="bld" type="checkbox" checked> Buildings (45,544 OSM)</label>
+    <label class="check"><input id="dmg" type="checkbox" checked> UNOSAT damage (783)</label>
+    <label class="check"><input id="trl" type="checkbox" checked> Agent trails</label>
+  </fieldset>
+
+  <div id="stats" class="stats"></div>
+  <div id="cohorts" class="cohorts"></div>
+</section>
+
+<footer id="credits">
+  Basemap © <a href="https://carto.com/about-carto/">CARTO</a>, data ©
+  <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ·
+  damage points UNITAR/UNOSAT CE20220223UKR ·
+  cohorts from <a href="https://github.com/Ethical-Tech-CoLab/mariupol-evacuation-model">ETC mariupol-evacuation-model</a> ·
+  agent model after <a href="https://github.com/GoogleCloudPlatform/race-condition">Race&nbsp;Condition</a>
+</footer>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/deck.gl@9.0.36/dist.min.js"></script>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
