@@ -298,11 +298,10 @@ function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes 
       id: i,
       zone: zone.properties.zone_id,
       cohort, unit: unitKey, behaviour: behaviourKey,
-      speed, ownSpeed: own,
+      speed,
       group: unit.size(r),
       info, risk,
       warnedAt,
-      zoneLag: zoneLag[zone.properties.zone_id],
       // How long this agent spends confirming the warning, and then waiting on
       // its unit and its neighbours. Both are scaled by who it travels with.
       seekFor: Math.max(0, gauss(r, behaviour.seek * 900, behaviour.seek * 260 * sp.timing)),

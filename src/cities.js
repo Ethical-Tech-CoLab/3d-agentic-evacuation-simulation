@@ -35,7 +35,15 @@ export const CITIES = [
 
 export const byId = id => CITIES.find(c => c.id === id) || CITIES[0];
 
+/** Is this a city we actually ship? The `?city=` parameter is used to build a
+ *  fetch path, so it is checked against the registry before it gets there — not
+ *  because it can escape the origin (it cannot, and there is nothing to reach
+ *  on a static host), but because an unrecognised value should give you
+ *  Mariupol rather than an unhandled rejection and a blank page. */
+export const isKnown = id => CITIES.some(c => c.id === id);
+
 export async function loadCity(id) {
+  if (!isKnown(id)) id = CITIES[0].id;
   const base = `data/cities/${id}`;
   const [meta, buildings, roads, zones, routes, approaches, homes] = await Promise.all([
     fetch(`${base}/meta.json`).then(r => r.json()),

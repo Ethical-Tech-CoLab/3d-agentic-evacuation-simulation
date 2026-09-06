@@ -247,3 +247,26 @@ Every schematic layer is a file, not code:
 - `data/buildings.json` — supply `[lon, lat, height]` triples and delete the
   `hashedHeight` call in `src/map.js` to use real heights.
 - `data/pois.geojson` — surveyed zone centroids.
+
+
+## 6. Security posture
+
+The site is static: no backend, no database, no authentication, no secrets. The
+attack surface is what a browser does with URL parameters and what the build
+tool does with data it fetches from OpenStreetMap.
+
+- URL parameters are either allowlisted against a registry (`city`, and
+  implicitly `w`/`tod` via table lookup with a fallback) or parsed strictly to
+  numbers and rejected when malformed (`n`, `seed`, `mc`, `mu`, `mb`, `sp`).
+- The three CDN assets are version-pinned and carry subresource-integrity
+  hashes.
+- `tools/fetch_city.py` shells out to nothing, deserialises only JSON, and posts
+  to two hardcoded HTTPS endpoints; the city id is checked against a dictionary
+  before it can reach a file path.
+
+**One thing to keep in mind when extending this.** Several panels build HTML by
+interpolation, and OpenStreetMap tag values are editable by anyone. At present
+no OSM string reaches HTML — the road `name` tag is never read by the front end,
+and every label comes from the hardcoded `EXITS` table or from repo-committed
+GeoJSON. If a future change routes an OSM tag into a route or zone label, escape
+it, or that becomes a stored cross-site-scripting vector.

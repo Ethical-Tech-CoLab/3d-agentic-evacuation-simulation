@@ -4,7 +4,7 @@ import { buildPopulation, tally, scaleOf, individualLegend,
          COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL, indexApproaches } from './engine.js';
 import { CARTO_STYLE, baseLayers, agentLayers, makeHeight } from './map.js';
-import { CITIES, byId, loadCity } from './cities.js';
+import { CITIES, byId, loadCity, isKnown } from './cities.js';
 import { AXES, PRESETS, defaultMix, flat, rebalance, mixToParams, mixFromParams, customAxes }
   from './mix.js';
 import { WEATHER, TIME_OF_DAY, environment, describe } from './conditions.js';
@@ -15,7 +15,7 @@ const fmt = n => n.toLocaleString('en-US');
 const params = new URLSearchParams(location.search);
 
 const state = {
-  cityId: params.get('city') || 'mariupol',
+  cityId: isKnown(params.get('city')) ? params.get('city') : 'mariupol',
   mix: mixFromParams(params),
   mixAxis: 'cohort',
   weather: params.get('w') || 'clear',
@@ -132,7 +132,7 @@ const emptyStats = () => {
   const people = state.agents.length ? scaleOf(state.agents).people : 0;
   return {
     t: 0, moving: 0, waiting: people, evacuated: 0, filtered: 0, back: 0,
-    socialProof: 0, people,
+    crawling: 0, socialProof: 0, people,
     counts: { unaware: people, seeking: 0, milling: 0, stayed: 0, evacuating: 0,
               returning: 0, done: 0, filtered: 0, back: 0 },
   };
@@ -208,7 +208,7 @@ function renderStats(s) {
     <div><b>${round(inside)}</b><span>still inside</span></div>
     <div class="${s.filtered > 0 ? 'warn' : ''}"><b>${round(s.filtered)}</b><span>left, not to safety</span></div>
     <div><b>${q(0.5)} / ${q(0.9)}</b><span>50th / 90th clearance</span></div>
-    <div><b>${round(s.counts.stayed)}</b><span>refusing to leave</span></div>`;
+    <div class="${s.crawling > 0 ? 'warn' : ''}"><b>${round(s.crawling || 0)}</b><span>reduced to a shuffle</span></div>`;
 
   $('lifecycle').innerHTML = ['unaware', 'seeking', 'milling', 'stayed', 'evacuating',
                               'returning', 'done', 'filtered', 'back']
@@ -427,6 +427,7 @@ function lastStats() {
     moving: counts.evacuating + counts.returning,
     waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
     evacuated: counts.done, filtered: counts.filtered, back: counts.back,
+    crawling: 0,
     socialProof: onMove / Math.max(people, 1),
   };
 }

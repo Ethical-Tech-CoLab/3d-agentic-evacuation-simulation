@@ -6,7 +6,9 @@
 <title>Evacuation Twin — Mariupol, New York, Las Vegas, Miami</title>
 <meta name="description" content="Browser 3-D evacuation twins of four cities on a CARTO basemap. An agentic synthetic population, classified by who they are, who they travel with and how they behave, chooses between real road-routed evacuation routes.">
 <link rel="icon" href="etc-icon.svg">
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"
+      integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V"
+      crossorigin="anonymous">
 <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
@@ -136,8 +138,14 @@
   agent model after <a href="https://github.com/GoogleCloudPlatform/race-condition">Race&nbsp;Condition</a>
 </footer>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/deck.gl@9.0.36/dist.min.js"></script>
+<!-- Pinned and hashed: the versions are fixed, so a compromised CDN cannot
+     swap the payload without the browser refusing to run it. -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"
+        integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/deck.gl@9.0.36/dist.min.js"
+        integrity="sha384-w/54/rLWDJgv9c3QdtRYUtL5h1sXLHGM4wH9frLq+CMEpTUpzCYAYpUsxtgPylpc"
+        crossorigin="anonymous"></script>
 <script type="module" src="src/app.js"></script>
 </body>
 </html>

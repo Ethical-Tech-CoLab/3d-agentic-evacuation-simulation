@@ -54,7 +54,7 @@ export function makeHeight(centre) {
   };
 }
 
-export const COLOUR_BY = {
+const COLOUR_BY = {
   // Every household its own colour, from four of its own variables at once.
   individual: { table: null, key: 'individual', label: 'Each household' },
   cohort: { table: COHORTS, key: 'cohort', label: 'Who they are' },

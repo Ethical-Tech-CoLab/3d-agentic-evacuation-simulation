@@ -15,7 +15,7 @@
 // is most of what the model is about: a route is only fast until everyone
 // picks it.
 
-import { COHORTS, TRAVEL_UNITS, BEHAVIOURS, rng } from './population.js';
+import { COHORTS, rng } from './population.js';
 
 const R = 6371000;
 const toRad = d => (d * Math.PI) / 180;
@@ -247,10 +247,8 @@ export const DEFAULTS = {
 };
 
 /** The lifecycle every agent passes through, in order. The names are the ones
- *  the CoLab's Evacuation Behavior Simulator uses. */
-export const STATES = ['unaware', 'seeking', 'milling', 'stayed', 'evacuating',
-                       'returning', 'done', 'filtered', 'back'];
-
+ *  the CoLab's Evacuation Behavior Simulator uses, and the key order here is
+ *  that order. */
 export const STATE_LABEL = {
   unaware: 'Not yet warned',
   seeking: 'Confirming the warning',
@@ -377,6 +375,8 @@ export function createSim(agents, routes, opts = {}) {
 
     const counts = { unaware: 0, seeking: 0, milling: 0, stayed: 0, evacuating: 0,
                      returning: 0, done: 0, filtered: 0, back: 0 };
+    // People currently reduced to a shuffle by the crowd in front of them.
+    let crawling = 0;
 
     for (const a of agents) {
       switch (a.state) {
@@ -441,7 +441,7 @@ export function createSim(agents, routes, opts = {}) {
           // ice at night that meant not one disabled household in Lower
           // Manhattan ever got out. They are still recorded as stalled — that
           // is the finding — but they keep inching forward.
-          if (v < CRAWL) { a.stalled += dt; v = CRAWL; }
+          if (v < CRAWL) { a.stalled += dt; crawling += a.weight; v = CRAWL; }
           const wasInDistrict = a.dist < a.entryDist;
           a.dist += v * dt;
           if (wasInDistrict && a.dist >= a.entryDist) {
@@ -487,7 +487,7 @@ export function createSim(agents, routes, opts = {}) {
       counts[a.state] += a.weight;
     }
 
-    return { t, socialProof, people, zoneProof: { ...zoneProof },
+    return { t, socialProof, people, crawling, zoneProof: { ...zoneProof },
              reroutes: agents.reduce((n, a) => n + (a.reroutes ? a.weight : 0), 0),
              moving: counts.evacuating + counts.returning,
              waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
