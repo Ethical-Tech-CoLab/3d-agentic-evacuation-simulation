@@ -1,0 +1,12 @@
+{
+  "name": "mariupol-3d",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser 3-D evacuation twins on a CARTO basemap, with an agentic synthetic population",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "serve": "python3 -m http.server 8000"
+  }
+}

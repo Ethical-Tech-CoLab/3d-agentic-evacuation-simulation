@@ -1,5 +1,26 @@
 # Method — what is real, what is modelled, what is illustrative
 
+## 0. The unit of account
+
+**One agent is one household. It carries `weight`: the number of real people it
+represents.** Every count the model reports — evacuated, still inside, queued,
+on a route — is a sum of weights, never a count of agents.
+
+Weights are set so that Σweight equals the zone population actually exposed, and
+then post-stratified so that the person-weighted share of each cohort matches
+its published share. The second step is needed because household size is not
+independent of household composition: children are placed in families and
+families are large, so a raw sample over-represents children in person terms
+even when it is correct in household terms. This is ordinary survey weighting.
+
+This matters more than any other choice in the model. Before it, an agent was
+simultaneously "one sampled person" and "a household of five", congestion was
+counted in agents, and so the model's headline outputs moved when you changed
+the *Agents* slider — a resolution control silently setting the population. The
+median clearance time drifted from 4.23 h to 4.68 h and the peak queue from 67
+to 2,998 across sample sizes of the same city. `test/model.test.mjs` now asserts
+that clearance and peak queueing are stable across sample sizes.
+
 This note exists so that nothing in the picture has to be taken on trust.
 
 ## 1. Real, vendored unchanged

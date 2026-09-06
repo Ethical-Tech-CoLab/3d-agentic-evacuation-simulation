@@ -12,7 +12,8 @@
     "exit": [
      -73.9903,
      40.7075
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -83,7 +84,8 @@
     "exit": [
      -73.9903,
      40.71
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -142,7 +144,8 @@
     "exit": [
      -73.9835,
      40.7167
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -201,7 +204,8 @@
     "exit": [
      -74.011,
      40.727
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -256,7 +260,8 @@
     "exit": [
      -73.984,
      40.75
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",

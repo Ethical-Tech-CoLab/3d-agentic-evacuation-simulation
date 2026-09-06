@@ -41,6 +41,8 @@ export function makeHeight(centre) {
 }
 
 export const COLOUR_BY = {
+  // Every household its own colour, from four of its own variables at once.
+  individual: { table: null, key: 'individual', label: 'Each household' },
   cohort: { table: COHORTS, key: 'cohort', label: 'Who they are' },
   unit: { table: TRAVEL_UNITS, key: 'unit', label: 'Who they travel with' },
   behaviour: { table: BEHAVIOURS, key: 'behaviour', label: 'How they behave' },
@@ -160,6 +162,7 @@ export function agentLayers(deck, { live, trails, showTrails, time, colourBy }) 
   const layers = [];
   const spec = COLOUR_BY[colourBy];
   const colourOf = d => {
+    if (colourBy === 'individual') return d.colour;
     if (colourBy === 'route') return d.routeColour;
     return spec.table[d[spec.key]]?.colour || [200, 200, 200];
   };

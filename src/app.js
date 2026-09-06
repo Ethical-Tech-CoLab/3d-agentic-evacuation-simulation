@@ -1,6 +1,7 @@
 // Wiring: pick a city, build a population, run the clock, redraw.
 
-import { buildPopulation, tally, COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
+import { buildPopulation, tally, scaleOf, individualLegend,
+         COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL, indexApproaches } from './engine.js';
 import { CARTO_STYLE, baseLayers, agentLayers, makeHeight } from './map.js';
 import { CITIES, byId, loadCity } from './cities.js';
@@ -21,7 +22,7 @@ const state = {
   tod: params.get('tod') || 'day',
   city: null, pack: null, height: null,
   agents: [], routes: [], sim: null,
-  running: false, trails: [], last: 0, colourBy: 'cohort',
+  running: false, trails: [], last: 0, colourBy: 'individual',
 };
 
 const initial = byId(state.cityId).view;
@@ -120,13 +121,18 @@ function rebuild() {
   renderMix();
   renderEnv();
   syncUrl();
-  draw(emptyStats(o.size));
+  draw(emptyStats());
 }
 
-const emptyStats = n => ({
-  t: 0, moving: 0, waiting: n, evacuated: 0, back: 0, socialProof: 0,
-  counts: { unaware: n, seeking: 0, milling: 0, evacuating: 0, returning: 0, done: 0, back: 0 },
-});
+const emptyStats = () => {
+  const people = state.agents.length ? scaleOf(state.agents).people : 0;
+  return {
+    t: 0, moving: 0, waiting: people, evacuated: 0, filtered: 0, back: 0,
+    socialProof: 0, people,
+    counts: { unaware: people, seeking: 0, milling: 0, stayed: 0, evacuating: 0,
+              returning: 0, done: 0, filtered: 0, back: 0 },
+  };
+};
 
 // Trails are sampled, not per-frame: ~120 representative agents is enough to
 // read the flow and keeps TripsLayer cheap at 20,000 agents.
@@ -150,7 +156,7 @@ function sampleTrails() {
 }
 
 function draw(s) {
-  const live = positions(state.agents, state.sim ? state.sim.time : 0);
+  const live = positions(state.agents);
   overlay.setProps({
     layers: [
       ...baseLayers(deck, {
@@ -176,33 +182,41 @@ function draw(s) {
   renderStats(s);
 }
 
+// Everything shown here is in PEOPLE — sums of household weights. The number
+// of simulated households is a resolution setting and is reported separately,
+// so it can never be mistaken for the size of the population.
 function renderStats(s) {
   const h = Math.floor(s.t / 3600), m = Math.floor((s.t % 3600) / 60);
   $('clock').textContent = `T+${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  const n = state.agents.length || 1;
+  const n = s.people || 1;
   const pct = x => `${((x / n) * 100).toFixed(1)}%`;
+  const round = x => fmt(Math.round(x));
 
-  // Clearance is measured on when an agent actually reached the far end of its
-  // route — not when it left the district, which flatters anyone who turned back.
-  const times = state.agents.filter(a => a.done).map(a => a.doneAt).sort((a, b) => a - b);
+  // Clearance is measured on when someone actually reached safety — not when
+  // they left the district, which flatters anyone who turned back.
+  const times = state.agents.filter(a => a.state === 'done').map(a => a.doneAt).sort((a, b) => a - b);
   const q = p => (times.length ? `${(times[Math.floor(times.length * p)] / 3600).toFixed(1)} h` : '—');
-  const neverLeft = s.counts.milling + s.counts.seeking + s.counts.unaware;
+  const inside = s.counts.unaware + s.counts.seeking + s.counts.milling + s.counts.stayed;
 
   $('stats').innerHTML = `
-    <div><b>${fmt(s.evacuated)}</b><span>out (${pct(s.evacuated)})</span></div>
-    <div><b>${fmt(s.moving)}</b><span>on a route</span></div>
-    <div><b>${fmt(neverLeft)}</b><span>still inside</span></div>
-    <div><b>${fmt(s.counts.returning)}</b><span>gone back</span></div>
+    <div><b>${round(s.evacuated)}</b><span>reached safety (${pct(s.evacuated)})</span></div>
+    <div><b>${round(s.moving)}</b><span>on a route</span></div>
+    <div><b>${round(inside)}</b><span>still inside</span></div>
+    <div class="${s.filtered > 0 ? 'warn' : ''}"><b>${round(s.filtered)}</b><span>left, not to safety</span></div>
     <div><b>${q(0.5)} / ${q(0.9)}</b><span>50th / 90th clearance</span></div>
-    <div><b>${(s.socialProof * 100).toFixed(0)}%</b><span>visibly moving</span></div>`;
+    <div><b>${round(s.counts.stayed)}</b><span>refusing to leave</span></div>`;
 
-  $('lifecycle').innerHTML = ['unaware', 'seeking', 'milling', 'evacuating', 'returning', 'done']
+  $('lifecycle').innerHTML = ['unaware', 'seeking', 'milling', 'stayed', 'evacuating',
+                              'returning', 'done', 'filtered', 'back']
+    .filter(k => (s.counts[k] || 0) > 0 || ['unaware', 'seeking', 'milling', 'evacuating', 'done'].includes(k))
     .map(k => {
       const v = s.counts[k] || 0;
       const w = (v / n) * 100;
+      const tone = k === 'filtered' || k === 'back' ? '#f87171'
+                 : k === 'stayed' ? '#fbbf24' : 'var(--accent)';
       return `<div class="life"><span class="lname">${STATE_LABEL[k]}</span>
-        <span class="bar"><i style="width:${w}%"></i></span>
-        <span class="pctv">${fmt(v)}</span></div>`;
+        <span class="bar"><i style="width:${w}%;background:${tone}"></i></span>
+        <span class="pctv">${round(v)}</span></div>`;
     }).join('');
 
   renderBreakdown();
@@ -211,15 +225,29 @@ function renderStats(s) {
 
 function renderBreakdown() {
   const axis = state.colourBy;
+
+  // Each household its own colour: there is nothing to tally, so the panel
+  // explains the encoding instead, using real households from this run.
+  if (axis === 'individual') {
+    $('breakdown').innerHTML =
+      `<p class="note enc">Every household has its own colour.
+        <b>Hue</b> is behaviour, nudged by cohort · <b>washed out</b> means badly
+        informed · <b>dark</b> means slow · <b>size</b> is headcount.</p>` +
+      individualLegend(state.agents).map(l => `<div class="cohort">
+        <span class="swatch" style="background:rgb(${l.colour.join(',')})"></span>
+        <span class="name" style="grid-column: 2 / span 3">${l.label}</span>
+      </div>`).join('');
+    return;
+  }
   if (axis === 'route') {
     const total = state.routes.reduce((a, r) => a + r.taken, 0) || 1;
     $('breakdown').innerHTML = state.routes.map(r => {
       const w = (r.taken / total) * 100;
       return `<div class="cohort">
         <span class="swatch" style="background:rgb(${r.colour.join(',')})"></span>
-        <span class="name" title="${r.name}">${r.name}</span>
+        <span class="name" title="${r.note}">${r.safe ? '' : '⚠ '}${r.name}</span>
         <span class="bar"><i style="width:${w}%;background:rgb(${r.colour.join(',')})"></i></span>
-        <span class="pctv">${fmt(r.taken)}</span></div>`;
+        <span class="pctv">${fmt(Math.round(r.taken))}</span></div>`;
     }).join('');
     return;
   }
@@ -227,7 +255,7 @@ function renderBreakdown() {
   const counts = tally(state.agents, axis);
   $('breakdown').innerHTML = Object.entries(table).map(([k, c]) => {
     const d = counts[k] || { n: 0, out: 0 };
-    const w = d.n ? (d.out / d.n) * 100 : 0;
+    const w = d.n ? (d.out / d.n) * 100 : 0;   // share of this group that is out
     return `<div class="cohort">
       <span class="swatch" style="background:rgb(${c.colour.join(',')})"></span>
       <span class="name">${c.label}</span>
@@ -238,9 +266,10 @@ function renderBreakdown() {
 
 function renderRouteList() {
   $('routeList').innerHTML = state.routes.map(r => `
-    <button class="route ${r.open ? '' : 'closed'}" data-route="${r.id}">
+    <button class="route ${r.open ? '' : 'closed'} ${r.safe ? '' : 'unsafe'}"
+            data-route="${r.id}" title="${r.note}">
       <span class="swatch" style="background:rgb(${r.colour.join(',')})"></span>
-      <span class="rname">${r.name}</span>
+      <span class="rname">${r.safe ? '' : '⚠ '}${r.name}</span>
       <span class="rlen">${(r.lengthM / 1000).toFixed(1)} km</span>
       <span class="rtaken" data-taken="${r.id}">0</span>
     </button>`).join('');
@@ -256,7 +285,12 @@ function renderRouteList() {
 function renderRouteStats() {
   for (const r of state.routes) {
     const el = $('routeList').querySelector(`[data-taken="${r.id}"]`);
-    if (el) el.textContent = fmt(r.taken);
+    if (el) {
+      el.textContent = fmt(Math.round(r.taken));
+      // A route that is jamming should say so while it is happening.
+      el.style.color = r.flowFactor < 0.6 ? '#f87171'
+                     : r.flowFactor < 0.9 ? '#fbbf24' : '';
+    }
   }
 }
 
@@ -376,18 +410,20 @@ function bindControls() {
 
 function lastStats() {
   const t = state.sim ? state.sim.time : 0;
-  const counts = { unaware: 0, seeking: 0, milling: 0, evacuating: 0, returning: 0, done: 0, back: 0 };
-  let onMove = 0;
+  const counts = { unaware: 0, seeking: 0, milling: 0, stayed: 0, evacuating: 0,
+                   returning: 0, done: 0, filtered: 0, back: 0 };
+  let onMove = 0, people = 0;
   for (const a of state.agents) {
-    counts[a.state]++;
-    if (a.state === 'evacuating' || a.state === 'returning' || a.done) onMove++;
+    counts[a.state] += a.weight;
+    people += a.weight;
+    if (a.state === 'evacuating' || a.state === 'returning' || a.done) onMove += a.weight;
   }
   return {
-    t, counts,
+    t, counts, people,
     moving: counts.evacuating + counts.returning,
-    waiting: counts.unaware + counts.seeking + counts.milling,
-    evacuated: counts.done, back: counts.back,
-    socialProof: onMove / Math.max(state.agents.length, 1),
+    waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
+    evacuated: counts.done, filtered: counts.filtered, back: counts.back,
+    socialProof: onMove / Math.max(people, 1),
   };
 }
 

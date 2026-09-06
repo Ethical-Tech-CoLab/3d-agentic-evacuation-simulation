@@ -53,6 +53,23 @@ photogrammetry GLB and a bespoke Three.js scene, this is **deck.gl over a CARTO
 vector basemap** — keyless, free, ~40 KB of application code, and every layer is
 georeferenced rather than model-space.
 
+## Reading the map
+
+By default **every household has its own colour**, built from four of its own
+variables at once, so a crowd looks like a crowd of individuals rather than four
+flat categories:
+
+| Channel | Variable |
+|---|---|
+| Hue | behaviour, nudged by cohort — an elderly seeker is visibly not an adult seeker |
+| Saturation | information quality — washed out means badly informed |
+| Lightness | walking speed — dark means slow |
+| Size | household headcount |
+
+A big, dark, washed-out dot is a large, slow, badly-informed household, and you
+can find it on the map without reading a number. The other four modes colour by
+a single axis when you want to answer "where are the elderly?" instead.
+
 ## The agents
 
 Every agent is classified on three independent axes. It matters that they are
@@ -60,8 +77,17 @@ independent: an elderly person travelling alone and an elderly person inside a
 family that is waiting for a son to come home are the same row in a census and
 completely different evacuation outcomes.
 
+**One agent is one household**, not one person, and it carries a `weight`: how
+many real people it stands for. Everything the model counts is counted in
+people, by summing weights. This is what makes the *Agents* slider a resolution
+control rather than a population size — the weights always sum to the exposed
+population, and the answer does not move when you change it. `npm test` asserts
+exactly that.
+
 **1 · Who they are** — adult, child, elderly, disabled. Sets base walking speed.
-Sampled to preserve each zone's published child / elderly / disabled split.
+Weights are post-stratified so the person-weighted cohort shares match the
+published split exactly, correcting for the fact that household size is not
+independent of who is in the household.
 
 **2 · Who they travel with** — the decision unit, which is what actually moves,
 at the pace of its slowest member:
@@ -151,9 +177,26 @@ the model rather than being put into it:
 - **Institutional units clear in ~5.9 h against ~3.3 h for people travelling
   alone** — nearly double, on the same routes.
 - **A returner costs itself ~2.6 hours.**
-- At low hazard, **13% of the city never leaves at all**; raise the hazard slider
-  and they finally move — and the median clearance time gets *worse*, because
-  they are now leaving late and into a crowd.
+- At low hazard, a persistent minority **refuses to leave**; raise the hazard
+  slider and they finally move — and the median clearance time gets *worse*,
+  because they are now leaving late and into a crowd.
+- **Reaching an exit is not reaching safety.** Mariupol's eastward route led to
+  filtration, and the households that take it are counted separately, never as
+  evacuated.
+
+## Tests
+
+```sh
+npm test
+```
+
+No dependencies; the tests are the point. They encode the invariants that a
+model like this has to hold — most importantly that **the answer must not depend
+on how many households are simulated**, which is the defect that a full review
+of this repo turned up first. Others assert that weights sum to the exposed
+population in every city, that a filtration exit is never counted as safety,
+that capacity actually constrains a route, that no cohort can deadlock, and that
+no agent in Lower Manhattan starts in or crosses the Hudson.
 
 ## Layers
 
@@ -206,3 +249,10 @@ CoLab `mariupol-evacuation-model`. Agent model after Race Condition
 (Apache-2.0, Google Cloud Platform).
 
 An [Ethical Tech CoLab](https://github.com/Ethical-Tech-CoLab) project.
+
+### Enabling CI
+
+The test workflow is not committed: the token used to push this repo lacks the
+GitHub `workflow` scope. To turn it on, either run `gh auth refresh -s workflow`
+and commit `.github/workflows/ci.yml`, or add it through the web UI — it needs
+nothing but `actions/checkout`, `actions/setup-node`, and `npm test`.

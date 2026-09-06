@@ -50,15 +50,23 @@ export function prepareRoutes(features, capacityPerMin) {
     id: f.properties.route_id || `R${i + 1}`,
     name: f.properties.name,
     note: f.properties.note,
+    // Whether the far end of this route is safety, or merely not-the-city.
+    // Mariupol's eastward route led to filtration. Counting the people who
+    // took it as "evacuated" would be the most misleading thing this model
+    // could do, so they are counted separately.
+    safe: f.properties.safe !== false,
     coords: f.geometry.coordinates,
     path: measurePath(f.geometry.coordinates),
-    lengthM: f.properties.length_m,
+    lengthM: f.properties.length_m || measurePath(f.geometry.coordinates).length,
     colour: ROUTE_COLOURS[i % ROUTE_COLOURS.length],
-    capacity: capacityPerMin,   // people/minute the route can absorb at its mouth
+    capacity: capacityPerMin,   // PEOPLE per minute
     open: true,
-    queued: 0,                  // agents currently inside the entry band
-    taken: 0,                   // agents that chose it
-    out: 0,                     // agents that finished on it
+    queued: 0,                  // people inside the entry band right now
+    onRoute: 0,                 // people on the route itself right now
+    density: 0,                 // people per metre on the route
+    flowFactor: 1,              // 0..1 speed multiplier from that density
+    taken: 0,                   // people that chose it
+    out: 0,                     // people that reached its far end
   }));
 }
 
@@ -181,7 +189,7 @@ function assign(agent, route) {
   agent.path = measurePath([agent.origin, ...e.coords, ...route.coords.slice(e.index + 1)]);
   // The district leg ends where the approach meets the route.
   agent.entryDist = agent.path.cum[e.coords.length];
-  route.taken++;
+  route.taken += agent.weight;   // people, not households
 }
 
 export const DEFAULTS = {
@@ -196,48 +204,93 @@ export const DEFAULTS = {
 
 /** The lifecycle every agent passes through, in order. The names are the ones
  *  the CoLab's Evacuation Behavior Simulator uses. */
-export const STATES = ['unaware', 'seeking', 'milling', 'evacuating', 'returning', 'done', 'back'];
+export const STATES = ['unaware', 'seeking', 'milling', 'stayed', 'evacuating',
+                       'returning', 'done', 'filtered', 'back'];
 
 export const STATE_LABEL = {
   unaware: 'Not yet warned',
   seeking: 'Confirming the warning',
   milling: 'Waiting — for family, for others',
+  stayed: 'Refusing to leave',
   evacuating: 'On a route',
-  returning: 'Turned back for someone',
-  done: 'Out',
-  back: 'Gave up / turned back',
+  returning: 'Gone back for someone',
+  done: 'Reached safety',
+  filtered: 'Left the city, not to safety',
+  back: 'Turned back — route closed',
 };
+
+/** Free walking speed used to turn a route's capacity into a density. */
+const FREE_SPEED = 1.2;
+/**
+ * Jam density as a multiple of the density at which capacity is achieved.
+ *
+ * Under Greenshields — the standard linear speed-density relation — flow peaks
+ * at exactly half the jam density, so this constant is 2 and not a tuning knob.
+ * It was 3.5 on first writing, which let a route carry far more than its stated
+ * capacity before slowing, and made the capacity slider nearly inert.
+ */
+const JAM_RATIO = 2.0;
+/**
+ * The slowest anyone moves while still on their feet — about 100 m/hour. Real
+ * crowds shuffle; they do not freeze. Without a floor here the model deadlocks
+ * its own slowest agents, and it deadlocks exactly the people the model exists
+ * to say something about.
+ */
+const CRAWL = 0.03;
 
 export function createSim(agents, routes, opts = {}) {
   const cfg = { ...DEFAULTS, ...opts };
   let t = 0;
+  const people = agents.reduce((s, a) => s + (a.weight || 1), 0);
   const r0 = rng((opts.seed || 20220316) ^ 0xbeef);
   for (const a of agents) {
-    // Decided once, up front, so it does not change under the agent mid-run.
-    a.willReturn = r0() < a.returnChance;
+    // Decided once, up front, so it does not change under the agent mid-run —
+    // and kept, so reset() can restore it rather than quietly losing it.
+    a.willReturnBase = r0() < a.returnChance;
+    a.willReturn = a.willReturnBase;
     a.returnAtFrac = 0.2 + r0() * 0.45;
   }
 
   function tick(dt) {
     t += dt;
     const env = cfg.env || DEFAULTS.env;
-    for (const r of routes) { r.queued = 0; r.capacity = cfg.routeCapacity * env.capacity; }
+    for (const r of routes) {
+      r.queued = 0; r.onRoute = 0;
+      r.capacity = cfg.routeCapacity * env.capacity;
+    }
 
-    // Two shared, emergent quantities the agents react to.
+    // Three shared, emergent quantities the agents react to. All of them are
+    // measured in PEOPLE — the sum of household weights — so none of them
+    // change when you change how many households are being simulated.
     //
-    // Queueing: who is inside the last 300 m before their chosen route's mouth.
-    // Social proof: what fraction of the district is visibly on the move. This
-    // is what collapses milling — a street sits still, then empties at once.
+    // Queueing: people inside the last 300 m before their route's mouth.
+    // Occupancy: people on the route itself, which sets its density.
+    // Social proof: the share of the district visibly on the move, which is
+    // what collapses milling — a street sits still, then empties at once.
     let onTheMove = 0;
     for (const a of agents) {
-      if (a.state === 'evacuating' || a.state === 'returning' || a.done) onTheMove++;
-      if (a.route && !a.done && !a.turnedBack && a.dist > 0 &&
-          a.dist < a.entryDist && a.entryDist - a.dist < 300) a.route.queued++;
+      if (a.state === 'evacuating' || a.state === 'returning' || a.done) onTheMove += a.weight;
+      if (!a.route || a.done || a.turnedBack) continue;
+      if (a.dist > 0 && a.dist < a.entryDist && a.entryDist - a.dist < 300) a.route.queued += a.weight;
+      else if (a.dist >= a.entryDist) a.route.onRoute += a.weight;
     }
-    const socialProof = onTheMove / Math.max(agents.length, 1);
+    const socialProof = onTheMove / Math.max(people, 1);
 
-    const counts = { unaware: 0, seeking: 0, milling: 0, evacuating: 0,
-                     returning: 0, done: 0, back: 0 };
+    // Speed-density on the route itself, not only at its mouth. A route with a
+    // capacity has a density at which that capacity is achieved; past it the
+    // column slows, the way a road does. Without this a "200 people per minute"
+    // corridor happily carried three thousand at full walking pace, which made
+    // the capacity slider almost meaningless — the one thing a corridor
+    // negotiation is actually about.
+    for (const r of routes) {
+      r.density = r.onRoute / Math.max(r.lengthM, 1);      // people per metre
+      const atCapacity = (r.capacity / 60) / FREE_SPEED;   // density at max flow
+      const jam = Math.max(atCapacity * JAM_RATIO, 1e-6);
+      r.flowFactor = Math.max(0.08, 1 - r.density / jam);
+    }
+
+    const counts = { unaware: 0, seeking: 0, milling: 0, stayed: 0, evacuating: 0,
+                     returning: 0, done: 0, filtered: 0, back: 0 };
 
     for (const a of agents) {
       switch (a.state) {
@@ -270,16 +323,38 @@ export function createSim(agents, routes, opts = {}) {
           // The reluctant stay put while they judge the danger survivable —
           // and the weather is part of that danger.
           const danger = Math.min(1, cfg.hazard + env.hazard);
-          if (a.millLeft <= 0 && danger >= a.reluctance) {
-            a.state = 'evacuating';
-            assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
+          if (a.millLeft <= 0) {
+            if (danger >= a.reluctance) {
+              a.state = 'evacuating';
+              assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
+            } else {
+              // Ready to go, and choosing not to. Its own state, because
+              // filing these people under "still waiting" hid the finding.
+              a.state = 'stayed';
+            }
           }
           break;
         }
 
+        case 'stayed':
+          // Refusing to leave is not permanent: it is a judgement about the
+          // danger, and the danger can rise. Re-checked every tick.
+          if (Math.min(1, cfg.hazard + env.hazard) >= a.reluctance) {
+            a.state = 'evacuating';
+            assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
+          }
+          break;
+
         case 'evacuating': {
-          const v = paceOf(a, cfg, env);
-          if (v < 0.05) { a.stalled += dt; break; }
+          let v = paceOf(a, cfg, env);
+          // A queue creeps; it does not stop dead. Treating anything below a
+          // threshold as "not moving" deadlocked the slowest agents: a disabled
+          // household in a jammed band was part of the jam, so the jam could
+          // never clear enough to release it, and it stayed there for ever. In
+          // ice at night that meant not one disabled household in Lower
+          // Manhattan ever got out. They are still recorded as stalled — that
+          // is the finding — but they keep inching forward.
+          if (v < CRAWL) { a.stalled += dt; v = CRAWL; }
           const wasInDistrict = a.dist < a.entryDist;
           a.dist += v * dt;
           if (wasInDistrict && a.dist >= a.entryDist) {
@@ -294,7 +369,9 @@ export function createSim(agents, routes, opts = {}) {
             break;
           }
           if (a.dist >= a.path.length) {
-            a.dist = a.path.length; a.done = true; a.state = 'done';
+            a.dist = a.path.length; a.done = true;
+            // Reaching the end of a route is not the same as reaching safety.
+            a.state = a.route.safe ? 'done' : 'filtered';
             a.exitTime ??= t;
             // `exitTime` is when the agent cleared the district; `doneAt` is
             // when it actually reached the far end. They are different numbers
@@ -308,7 +385,7 @@ export function createSim(agents, routes, opts = {}) {
 
         case 'returning': {
           // Back down the same road, into the hazard, at a hurrying pace.
-          const v = paceOf(a, cfg, env) * 1.15;
+          const v = Math.max(CRAWL, paceOf(a, cfg, env) * 1.15);
           a.dist -= v * dt;
           if (a.dist <= a.entryDist * 0.4) {
             a.dist = Math.max(0, a.dist);
@@ -320,13 +397,14 @@ export function createSim(agents, routes, opts = {}) {
 
         default: break;                        // done / back are terminal
       }
-      counts[a.state]++;
+      counts[a.state] += a.weight;
     }
 
-    return { t, socialProof,
+    return { t, socialProof, people,
              moving: counts.evacuating + counts.returning,
-             waiting: counts.unaware + counts.seeking + counts.milling,
-             evacuated: counts.done, back: counts.back, counts };
+             waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
+             evacuated: counts.done, filtered: counts.filtered,
+             back: counts.back, counts };
   }
 
   /** Metres per second for an agent right now, given where it is and what the
@@ -345,34 +423,46 @@ export function createSim(agents, routes, opts = {}) {
         v *= 1 - 0.85 * Math.min(1, load);
       }
     } else {
-      v *= 0.92;                                // column pace on the road
+      // On the route: column pace, throttled by how dense the column is.
+      v *= 0.92 * a.route.flowFactor;
     }
     return v;
   }
 
   function reset() {
     t = 0;
-    for (const r of routes) { r.taken = 0; r.out = 0; r.queued = 0; }
+    for (const r of routes) {
+      r.taken = 0; r.out = 0; r.queued = 0; r.onRoute = 0;
+      r.density = 0; r.flowFactor = 1;
+    }
     for (const a of agents) {
       a.dist = 0; a.done = false; a.turnedBack = false; a.stalled = 0;
       a.exitTime = null; a.doneAt = null; a.route = null; a.path = null;
-      a.state = 'unaware'; a.returnedAt = null; a.willReturn = a.returnChance > 0 && a.willReturn;
+      a.state = 'unaware'; a.returnedAt = null;
+      // Restore the decision made at construction, rather than ANDing with
+      // whatever the last run left behind — which silently threw away every
+      // returner that had already returned.
+      a.willReturn = a.willReturnBase;
     }
   }
 
-  return { tick, reset, cfg, routes, get time() { return t; } };
+  return { tick, reset, cfg, routes, people, get time() { return t; } };
 }
 
 /** Live positions for rendering, coloured by the route each agent chose. */
-export function positions(agents, t) {
+export function positions(agents) {
   const out = [];
   for (const a of agents) {
-    if (!a.route || t < a.departure || a.turnedBack) continue;
+    // The finished are not drawn. Leaving them piled on the exit rendered a
+    // static crust that read as congestion which was not there.
+    if (!a.route || a.done || a.turnedBack) continue;
     out.push({
       position: pointAt(a.path, a.dist),
       colour: COHORTS[a.cohort].colour,
       routeColour: a.route.colour,
-      cohort: a.cohort, zone: a.zone, group: a.group, done: a.done,
+      cohort: a.cohort, zone: a.zone, group: a.group, unit: a.unit,
+      behaviour: a.behaviour, weight: a.weight, done: false,
+      colour: a.colour,          // this household's own colour
       route: a.route.name,
     });
   }

@@ -1,10 +1,20 @@
 // Agentic synthetic population.
 //
-// Every agent is drawn from a published zone cohort. We never invent the
-// demography — we expand the published aggregates into individuals, then give
-// each individual the three things the movement model needs and the aggregates
-// cannot supply: who it is, who it is travelling with, and how it behaves when
-// it is told to leave.
+// ONE AGENT IS ONE TRAVEL UNIT — a person alone, a family, an ad-hoc group, a
+// care home — and it carries `weight`: how many real people it stands for.
+// Everything the model counts is counted in people, by summing weights, never
+// by counting agents.
+//
+// This distinction is the whole basis of the model being sound. An agent that
+// is simultaneously "one sampled person" and "a household of five" makes the
+// output depend on the sample size, which is a UI slider — so the answer would
+// change when you changed the resolution you were looking at it with. It does
+// not any more; `npm test` asserts it.
+//
+// We never invent the demography. We expand the published aggregates into
+// households, then give each household the three things the movement model
+// needs and the aggregates cannot supply: who it is, who it travels with, and
+// how it behaves when it is told to leave.
 //
 // The three classifications are independent axes, and it matters that they are:
 // an elderly person travelling alone and an elderly person inside a family that
@@ -168,6 +178,60 @@ function pickCohort(weights, total, r) {
  */
 export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.6,
                                   warningSpread = 5400, mix = null, homes = null }) {
+  const agents = buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes });
+  return colourIndividually(weight(agents, zones, mix));
+}
+
+/**
+ * Give every household a headcount weight, so that
+ *
+ *   Σ weight                        = the zone population actually exposed, and
+ *   Σ weight over a cohort / Σ all  = that cohort's published share.
+ *
+ * The first is a straight scale factor: the sample stands for the whole
+ * population however many households we drew. The second is post-stratification
+ * — the ordinary survey-weighting correction — and it is needed because
+ * household size is not independent of who is in the household. Children are
+ * forced into families and families are large, so a raw sample over-represents
+ * children in person terms even when it is right in household terms.
+ */
+function weight(agents, zones, mix) {
+  const exposed = zones.reduce((s, z) => s + (z.properties.population || 0), 0);
+  const rawTotal = agents.reduce((s, a) => s + a.group, 0) || 1;
+  const scale = exposed / rawTotal;
+  for (const a of agents) a.weight = a.group * scale;
+
+  // Target cohort shares: the override if there is one, else the published
+  // per-zone counts summed across the city.
+  let target = mix && mix.cohort;
+  if (!target) {
+    const tot = { adult: 0, child: 0, elderly: 0, disabled: 0 };
+    for (const z of zones) {
+      const p = z.properties;
+      tot.child += p.children || 0;
+      tot.elderly += p.elderly || 0;
+      tot.disabled += p.disabled || 0;
+      tot.adult += Math.max(0, (p.population || 0) - (p.children || 0) - (p.elderly || 0) - (p.disabled || 0));
+    }
+    const sum = Object.values(tot).reduce((a, b) => a + b, 0) || 1;
+    target = Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, v / sum]));
+  }
+
+  const have = {};
+  let all = 0;
+  for (const a of agents) { have[a.cohort] = (have[a.cohort] || 0) + a.weight; all += a.weight; }
+  for (const a of agents) {
+    const want = (target[a.cohort] ?? 0) * all;
+    const got = have[a.cohort] || 0;
+    if (got > 0 && want > 0) a.weight *= want / got;
+  }
+  // Rescale once more so the weights still sum to the exposed population.
+  const after = agents.reduce((s, a) => s + a.weight, 0) || 1;
+  for (const a of agents) a.weight *= exposed / after;
+  return agents;
+}
+
+function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes }) {
   const r = rng(seed);
   const m = mix || {
     cohort: null,
@@ -235,6 +299,9 @@ export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.
       // Probability this agent turns back once, mid-route.
       returnChance: behaviour.returns,
       origin: originIn(zone, r, homes),
+      // People this household stands for. Set by weight(); every count in the
+      // model is a sum of these, never a count of agents.
+      weight: 0,
       // Runtime state, reset by the engine.
       state: 'unaware', dist: 0, done: false, turnedBack: false,
       route: null, path: null, exitTime: null, doneAt: null, stalled: 0, returnedAt: null,
@@ -263,14 +330,93 @@ function originIn(zone, r, homes) {
   return [lon + (d * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), lat + d * Math.sin(a)];
 }
 
-/** Counts by any classification axis, for the console readouts. */
+/** Counts by any classification axis, in PEOPLE — the sum of household weights,
+ *  not a count of households. Reporting these in agents was the bug that made
+ *  every headline number depend on the sample size. */
 export function tally(agents, key) {
   const out = {};
   for (const a of agents) {
-    const b = (out[a[key]] ??= { n: 0, out: 0, stuck: 0 });
-    b.n++;
-    if (a.done) b.out++;
-    else if (a.state === 'unaware' || a.state === 'seeking' || a.state === 'milling') b.stuck++;
+    const b = (out[a[key]] ??= { n: 0, out: 0, stuck: 0, units: 0 });
+    b.n += a.weight;
+    b.units++;
+    if (a.done) b.out += a.weight;
+    else if (a.state === 'unaware' || a.state === 'seeking' ||
+             a.state === 'milling' || a.state === 'stayed') b.stuck += a.weight;
   }
   return out;
+}
+
+/** Total people represented, and the households representing them. */
+export function scaleOf(agents) {
+  return {
+    people: agents.reduce((s, a) => s + a.weight, 0),
+    units: agents.length,
+    perUnit: agents.length ? agents.reduce((s, a) => s + a.weight, 0) / agents.length : 0,
+  };
+}
+
+/* ── Individual colour ───────────────────────────────────────────────────── */
+//
+// Colouring by one category at a time answers "where are the elderly?" but
+// hides the thing the model is actually about: that no two households are the
+// same. This gives every household its own colour, built from four of its own
+// variables at once, so a crowd looks like a crowd of individuals and you can
+// still read structure out of it:
+//
+//   Hue         behaviour — which of the five it is, nudged by cohort, so an
+//               elderly information-seeker is a visibly different colour from
+//               an adult one
+//   Saturation  information quality — washed out means badly informed
+//   Lightness   walking speed — dark means slow
+//   Size        household headcount (applied by the renderer, not here)
+//
+// So: a big dark washed-out dot is a large, slow, badly-informed household,
+// and you can find it on the map without reading a single number.
+
+const BEHAVIOUR_HUE = {
+  prompt: 142, seeker: 196, milling: 44, reluctant: 6, returner: 322,
+};
+const COHORT_HUE_SHIFT = { adult: 0, child: 16, elderly: -16, disabled: -28 };
+
+const SPEED_RANGE = [0.3, 1.5];   // m/s, for mapping pace onto lightness
+
+function hslToRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360 / 360;
+  const f = n => {
+    const k = (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return [f(0), f(8), f(4)];
+}
+
+/** Assign every household its own colour from its own variables. */
+export function colourIndividually(agents) {
+  for (const a of agents) {
+    const hue = (BEHAVIOUR_HUE[a.behaviour] ?? 200) + (COHORT_HUE_SHIFT[a.cohort] ?? 0);
+    // Badly-informed households wash out toward grey.
+    const sat = 0.22 + 0.68 * a.info;
+    // Slow households go dark. Clamped so nothing disappears against the map.
+    const t = (a.speed - SPEED_RANGE[0]) / (SPEED_RANGE[1] - SPEED_RANGE[0]);
+    const light = 0.30 + 0.42 * Math.min(1, Math.max(0, t));
+    a.colour = hslToRgb(hue, sat, light);
+  }
+  return agents;
+}
+
+/** A worked legend for the individual encoding, built from live extremes so it
+ *  describes this population rather than a hypothetical one. */
+export function individualLegend(agents) {
+  if (!agents.length) return [];
+  const pick = (label, test) => {
+    const found = agents.find(test);
+    return found ? { label, colour: found.colour } : null;
+  };
+  return [
+    pick('Prompt, well informed, quick', a => a.behaviour === 'prompt' && a.info > 0.7 && a.speed > 1.1),
+    pick('Wait-and-see, average', a => a.behaviour === 'milling' && a.info > 0.4 && a.info < 0.7),
+    pick('Reluctant, badly informed', a => a.behaviour === 'reluctant' && a.info < 0.4),
+    pick('Seeker, slow (elderly)', a => a.behaviour === 'seeker' && a.cohort === 'elderly'),
+    pick('Returner', a => a.behaviour === 'returner'),
+  ].filter(Boolean);
 }

@@ -223,33 +223,39 @@ def simplify(coords, tol_m=8.0):
 
 
 # Exits are real, named egress points — the places a city actually empties
-# through. Each is (label, lon, lat, note). The route search finds the road path
-# to them; nothing about the path itself is drawn by hand.
+# through. Each is (label, lon, lat, note, safe). The route search finds the road
+# path to them; nothing about the path itself is drawn by hand.
+#
+# `safe` is the difference between leaving the city and reaching safety. The
+# eastward route out of Mariupol led to filtration, not to protection; counting
+# someone who took it as "evacuated" would be the single most misleading thing
+# this model could do, so it is counted separately and always has been labelled
+# as such in the route note.
 EXITS = {
     "mariupol": [
-        ("West · Zaporizhzhia corridor", 37.4520, 47.1440, "The negotiated humanitarian corridor via Manhush"),
-        ("North · Donetsk highway (H-20)", 37.5480, 47.1720, "Toward Volnovakha; contested throughout the siege"),
-        ("East · Novoazovsk / Bezimenne", 37.6390, 47.1010, "Filtration-bound; an exit from the city, not to safety"),
-        ("South-west · coastal road", 37.4610, 47.0630, "Melekyne shore road, west along the Sea of Azov"),
+        ("West · Zaporizhzhia corridor", 37.4520, 47.1440, "The negotiated humanitarian corridor via Manhush", True),
+        ("North · Donetsk highway (H-20)", 37.5480, 47.1720, "Toward Volnovakha; contested throughout the siege", True),
+        ("East · Novoazovsk / Bezimenne", 37.6390, 47.1010, "Filtration-bound; an exit from the city, not to safety", False),
+        ("South-west · coastal road", 37.4610, 47.0630, "Melekyne shore road, west along the Sea of Azov", True),
     ],
     "nyc": [
-        ("Brooklyn Bridge", -73.9903, 40.7075, "Onto high ground in Brooklyn Heights"),
-        ("Manhattan Bridge", -73.9903, 40.7100, "Second East River crossing, into Dumbo"),
-        ("Williamsburg Bridge", -73.9835, 40.7167, "Northernmost crossing; Delancey Street approach"),
-        ("Holland Tunnel", -74.0110, 40.7270, "Westbound to New Jersey; closes early in a surge"),
-        ("North · Midtown high ground", -73.9840, 40.7500, "Out of Zone 1 on foot, up the island"),
+        ("Brooklyn Bridge", -73.9903, 40.7075, "Onto high ground in Brooklyn Heights", True),
+        ("Manhattan Bridge", -73.9903, 40.7100, "Second East River crossing, into Dumbo", True),
+        ("Williamsburg Bridge", -73.9835, 40.7167, "Northernmost crossing; Delancey Street approach", True),
+        ("Holland Tunnel", -74.0110, 40.7270, "Westbound to New Jersey; closes early in a surge", True),
+        ("North · Midtown high ground", -73.9840, 40.7500, "Out of Zone 1 on foot, up the island", True),
     ],
     "vegas": [
-        ("North · Sahara Ave", -115.1560, 36.1440, "Off the Strip to the north"),
-        ("South · Russell Rd", -115.1720, 36.0820, "Toward the airport and Russell"),
-        ("West · I-15 / Valley View", -115.1880, 36.1080, "Across the interstate to the west"),
-        ("East · Paradise Rd", -115.1500, 36.1050, "Behind the resort line, to the east"),
+        ("North · Sahara Ave", -115.1560, 36.1440, "Off the Strip to the north", True),
+        ("South · Russell Rd", -115.1720, 36.0820, "Toward the airport and Russell", True),
+        ("West · I-15 / Valley View", -115.1880, 36.1080, "Across the interstate to the west", True),
+        ("East · Paradise Rd", -115.1500, 36.1050, "Behind the resort line, to the east", True),
     ],
     "miami": [
-        ("West · SW 8th St (Tamiami)", -80.2230, 25.7650, "Inland and out of Zone A"),
-        ("North · Biscayne Blvd / I-95", -80.1900, 25.8020, "Northbound off the peninsula"),
-        ("West · SR-836 Dolphin Expwy", -80.2220, 25.7850, "The designated westbound evacuation route"),
-        ("South · US-1 South Dixie", -80.2050, 25.7480, "Southbound along the ridge"),
+        ("West · SW 8th St (Tamiami)", -80.2230, 25.7650, "Inland and out of Zone A", True),
+        ("North · Biscayne Blvd / I-95", -80.1900, 25.8020, "Northbound off the peninsula", True),
+        ("West · SR-836 Dolphin Expwy", -80.2220, 25.7850, "The designated westbound evacuation route", True),
+        ("South · US-1 South Dixie", -80.2050, 25.7480, "Southbound along the ridge", True),
     ],
 }
 
@@ -355,7 +361,7 @@ def build_city(city_id):
     )
     src = nearest_node(adj, origin)
     routes = []
-    for i, (label, lon, lat, note) in enumerate(EXITS[city_id]):
+    for i, (label, lon, lat, note, safe) in enumerate(EXITS[city_id]):
         dst = nearest_node(adj, (lon, lat))
         path, metres = dijkstra(adj, src, dst)
         if not path:
@@ -367,11 +373,12 @@ def build_city(city_id):
             "properties": {
                 "route_id": f"R{i+1}", "name": label, "note": note,
                 "length_m": round(metres), "vertices": len(simple),
-                "exit": [lon, lat],
+                "exit": [lon, lat], "safe": safe,
             },
             "geometry": {"type": "LineString", "coordinates": simple},
         })
-        print(f"  ✓ {label}: {metres/1000:.1f} km, {len(path)}→{len(simple)} pts", flush=True)
+        print(f"  ✓ {label}: {metres/1000:.1f} km, {len(path)}→{len(simple)} pts"
+              f"{'' if safe else '   [NOT SAFETY — counted separately]'}", flush=True)
 
     json.dump({"type": "FeatureCollection", "features": routes},
               open(os.path.join(out_dir, "routes.geojson"), "w"), indent=1)

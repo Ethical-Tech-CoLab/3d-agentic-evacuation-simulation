@@ -12,7 +12,8 @@
     "exit": [
      -115.156,
      36.144
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -99,7 +100,8 @@
     "exit": [
      -115.172,
      36.082
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -134,7 +136,8 @@
     "exit": [
      -115.188,
      36.108
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
@@ -229,7 +232,8 @@
     "exit": [
      -115.15,
      36.105
-    ]
+    ],
+    "safe": true
    },
    "geometry": {
     "type": "LineString",
