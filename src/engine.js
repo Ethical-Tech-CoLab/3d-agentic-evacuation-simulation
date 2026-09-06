@@ -67,17 +67,49 @@ export const ROUTE_COLOURS = [
 ];
 
 /**
- * Where an agent joins a route: the nearest vertex, and the walk to reach it.
- * Joining at your nearest point rather than at the route's head is what makes
- * route choice a real trade-off — the shortest route is often not the closest.
+ * Where an agent joins a route, and how it gets there.
+ *
+ * The approach leg is a road path precomputed per zone × route by
+ * tools/fetch_city.py — not a straight line. That matters: a straight line from
+ * a Battery Park City address to the nearest point on the Holland Tunnel route
+ * runs across the Hudson. Every metre an agent walks is now on a road.
+ *
+ * Joining at the point on the route nearest your own zone, rather than at the
+ * route's head, is what keeps route choice a real trade-off — the shortest
+ * route is often not the closest one to you.
  */
-function entryFor(origin, route) {
+function entryFor(agent, route, approaches) {
+  const leg = approaches?.[`${agent.zone}|${route.id}`];
+  if (leg) {
+    return {
+      index: leg.entryIndex,
+      coords: leg.coords,
+      walk: leg.length + haversine(agent.origin, leg.coords[0]),
+      remaining: route.path.length - route.path.cum[leg.entryIndex],
+    };
+  }
+  // Fallback for a pack built before approaches existed: nearest vertex,
+  // straight line. Kept so an old pack still runs, not because it is right.
   let best = 0, bd = Infinity;
   for (let i = 0; i < route.coords.length; i++) {
-    const d = haversine(origin, route.coords[i]);
+    const d = haversine(agent.origin, route.coords[i]);
     if (d < bd) { bd = d; best = i; }
   }
-  return { index: best, walk: bd, remaining: route.path.length - route.path.cum[best] };
+  return { index: best, coords: [route.coords[best]], walk: bd,
+           remaining: route.path.length - route.path.cum[best] };
+}
+
+/** Index the approach legs by "zone|route" for the lookup above. */
+export function indexApproaches(features) {
+  const out = {};
+  for (const f of features || []) {
+    out[`${f.properties.zone_id}|${f.properties.route_id}`] = {
+      entryIndex: f.properties.entry_index,
+      length: f.properties.length_m,
+      coords: f.geometry.coordinates,
+    };
+  }
+  return out;
 }
 
 /**
@@ -90,11 +122,14 @@ function entryFor(origin, route) {
  * people. `herd` is how strongly the crowd pulls; it is what turns four
  * adequate routes into one jammed one.
  */
-export function chooseRoute(agent, routes, herd) {
+export function chooseRoute(agent, routes, herd, visibility = 1) {
   let best = null, bestCost = Infinity;
   const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
+  // Fog, smoke and darkness do not slow anyone down much; they wreck the
+  // judgement the choice rests on. An agent that cannot see the queue joins it.
+  const seen = agent.info * visibility;
   for (const r of routes) {
-    if (!r.open && agent.info > 0.7) continue;      // only the informed know
+    if (!r.open && seen > 0.7) continue;            // only the informed know
     const e = agent.entries[r.id];
     const travel = (e.walk + e.remaining) / agent.speed;
 
@@ -103,7 +138,7 @@ export function chooseRoute(agent, routes, herd) {
     // handful visible at its mouth right now. An agent sees this in proportion
     // to how good its information is; the rest is guesswork.
     const committed = Math.max(0, r.taken - r.out);
-    const expected = (committed / Math.max(r.capacity / 60, 0.1)) * agent.info;
+    const expected = (committed / Math.max(r.capacity / 60, 0.1)) * seen;
 
     // Idiosyncratic preference: the road you know, the direction you have
     // family in, the bridge you have always used. Without this every agent of
@@ -114,7 +149,7 @@ export function chooseRoute(agent, routes, herd) {
     // Following the crowd. Strongest in the badly-informed, and in ad-hoc
     // groups, which form out of people already moving.
     const pull = agent.unit === 'group' ? 1.5 : 1;
-    const follow = herd * (1 - agent.info) * pull * (r.taken / totalTaken) * travel;
+    const follow = herd * (1 - seen) * pull * (r.taken / totalTaken) * travel;
 
     const cost = (travel + expected) * taste - follow;
     if (cost < bestCost) { bestCost = cost; best = r; }
@@ -124,12 +159,12 @@ export function chooseRoute(agent, routes, herd) {
 
 /** Precompute every agent's entry onto every route, and its taste for each.
  *  Done once per population, from the population seed, so a run reproduces. */
-export function buildEntries(agents, routes, seed = 20220316) {
+export function buildEntries(agents, routes, seed = 20220316, approaches = null) {
   const r0 = rng(seed ^ 0x5eed);
   for (const a of agents) {
     a.entries = {};
     for (const r of routes) {
-      const e = entryFor(a.origin, r);
+      const e = entryFor(a, r, approaches);
       // A multiplicative preference centred on 1: most agents mildly prefer or
       // avoid a given route, a few strongly.
       e.bias = Math.exp((r0() - 0.5) * 0.9);
@@ -142,8 +177,10 @@ export function buildEntries(agents, routes, seed = 20220316) {
 function assign(agent, route) {
   const e = agent.entries[route.id];
   agent.route = route;
-  agent.path = measurePath([agent.origin, ...route.coords.slice(e.index)]);
-  agent.entryDist = agent.path.cum[1];   // end of the leg through the district
+  // Front door → road approach leg → the route itself, all on real geometry.
+  agent.path = measurePath([agent.origin, ...e.coords, ...route.coords.slice(e.index + 1)]);
+  // The district leg ends where the approach meets the route.
+  agent.entryDist = agent.path.cum[e.coords.length];
   route.taken++;
 }
 
@@ -152,6 +189,9 @@ export const DEFAULTS = {
   hazard: 0.35,         // 0..1 danger on the leg out of the district
   herd: 0.35,           // 0..1 how strongly agents follow the crowd
   timeScale: 120,       // simulated seconds per real second
+  // Weather and time of day, from conditions.js. Every field is a multiplier
+  // on something the model already had, so conditions can be changed mid-run.
+  env: { speed: 1, capacity: 1, hazard: 0, visibility: 1, warn: 1, gather: 1, perCohort: {} },
 };
 
 /** The lifecycle every agent passes through, in order. The names are the ones
@@ -180,7 +220,8 @@ export function createSim(agents, routes, opts = {}) {
 
   function tick(dt) {
     t += dt;
-    for (const r of routes) { r.queued = 0; r.capacity = cfg.routeCapacity; }
+    const env = cfg.env || DEFAULTS.env;
+    for (const r of routes) { r.queued = 0; r.capacity = cfg.routeCapacity * env.capacity; }
 
     // Two shared, emergent quantities the agents react to.
     //
@@ -202,8 +243,12 @@ export function createSim(agents, routes, opts = {}) {
       switch (a.state) {
 
         case 'unaware':
-          // The warning has to arrive before anything else can happen.
-          if (t >= a.warnedAt) { a.state = 'seeking'; a.seekUntil = t + a.seekFor / (0.35 + a.info); }
+          // The warning has to arrive before anything else can happen — and at
+          // night, asleep, it takes twice as long to land.
+          if (t >= a.warnedAt * env.warn) {
+            a.state = 'seeking';
+            a.seekUntil = t + a.seekFor / (0.35 + a.info);
+          }
           break;
 
         case 'seeking':
@@ -219,18 +264,21 @@ export function createSim(agents, routes, opts = {}) {
           // Waiting: for the rest of the family to get home, for the ward's
           // transport, or simply for enough neighbours to go first. Milling
           // burns down faster the more of the district is already moving.
-          a.millLeft -= dt * (1 + 2.5 * socialProof);
-          // The reluctant stay put while they judge the danger survivable.
-          const moved = cfg.hazard >= a.reluctance;
-          if (a.millLeft <= 0 && moved) {
+          // Gathering takes longer when the household is scattered across a
+          // working day, and less time when everyone is already home.
+          a.millLeft -= (dt / env.gather) * (1 + 2.5 * socialProof);
+          // The reluctant stay put while they judge the danger survivable —
+          // and the weather is part of that danger.
+          const danger = Math.min(1, cfg.hazard + env.hazard);
+          if (a.millLeft <= 0 && danger >= a.reluctance) {
             a.state = 'evacuating';
-            assign(a, chooseRoute(a, routes, cfg.herd));
+            assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
           }
           break;
         }
 
         case 'evacuating': {
-          const v = paceOf(a, cfg);
+          const v = paceOf(a, cfg, env);
           if (v < 0.05) { a.stalled += dt; break; }
           const wasInDistrict = a.dist < a.entryDist;
           a.dist += v * dt;
@@ -260,7 +308,7 @@ export function createSim(agents, routes, opts = {}) {
 
         case 'returning': {
           // Back down the same road, into the hazard, at a hurrying pace.
-          const v = paceOf(a, cfg) * 1.15;
+          const v = paceOf(a, cfg, env) * 1.15;
           a.dist -= v * dt;
           if (a.dist <= a.entryDist * 0.4) {
             a.dist = Math.max(0, a.dist);
@@ -281,13 +329,17 @@ export function createSim(agents, routes, opts = {}) {
              evacuated: counts.done, back: counts.back, counts };
   }
 
-  /** Metres per second for an agent right now, given where it is. */
-  function paceOf(a, cfg) {
-    let v = a.speed;
+  /** Metres per second for an agent right now, given where it is and what the
+   *  weather is doing to it. Conditions that fall on particular cohorts — ice
+   *  on the elderly, heat on the very young — are applied here, which is why a
+   *  hard winter costs a care home far more than it costs a solo adult. */
+  function paceOf(a, cfg, env) {
+    let v = a.speed * env.speed * (env.perCohort[a.cohort] ?? 1);
     if (a.dist < a.entryDist) {
       // Still inside the district: hazard costs time — taking cover,
       // backtracking around a blocked street.
-      v *= 1 - cfg.hazard * (1 - 0.4 * a.risk) * 0.6;
+      const danger = Math.min(1, cfg.hazard + env.hazard);
+      v *= 1 - danger * (1 - 0.4 * a.risk) * 0.6;
       if (a.entryDist - a.dist < 300) {
         const load = a.route.queued / Math.max(a.route.capacity, 1);
         v *= 1 - 0.85 * Math.min(1, load);

@@ -376,6 +376,61 @@ def build_city(city_id):
     json.dump({"type": "FeatureCollection", "features": routes},
               open(os.path.join(out_dir, "routes.geojson"), "w"), indent=1)
 
+    # Approach legs: for every zone × route, the road path from that zone to the
+    # point on the route nearest to it.
+    #
+    # Without these, an agent walks a straight line from wherever it starts to
+    # its nearest route vertex — which in Lower Manhattan means walking across
+    # the Hudson. An evacuation model that lets people cross open water is not
+    # modelling an evacuation. Every metre an agent covers is now on a road.
+    approaches = []
+    for z in zones:
+        zsrc = nearest_node(adj, tuple(z["geometry"]["coordinates"]))
+        for rt in routes:
+            coords = rt["geometry"]["coordinates"]
+            # The vertex of this route nearest to this zone — the natural place
+            # for someone from here to join it.
+            best_i, best_d = 0, float("inf")
+            for i, c in enumerate(coords):
+                d = haversine(tuple(c), tuple(z["geometry"]["coordinates"]))
+                if d < best_d:
+                    best_d, best_i = d, i
+            zdst = nearest_node(adj, tuple(coords[best_i]))
+            path, metres = dijkstra(adj, zsrc, zdst)
+            if not path:
+                # No road connection at all: fall back to joining at the route's
+                # head, which every zone can reach because that is where the
+                # routes were measured from.
+                path, metres, best_i = [list(zsrc), list(coords[0])], \
+                    haversine(zsrc, tuple(coords[0])), 0
+            approaches.append({
+                "type": "Feature",
+                "properties": {"zone_id": z["properties"]["zone_id"],
+                               "route_id": rt["properties"]["route_id"],
+                               "entry_index": best_i, "length_m": round(metres)},
+                "geometry": {"type": "LineString", "coordinates": simplify(path)},
+            })
+    json.dump({"type": "FeatureCollection", "features": approaches},
+              open(os.path.join(out_dir, "approaches.geojson"), "w"), indent=1)
+    print(f"  approaches: {len(approaches)} (zone x route legs)", flush=True)
+
+    # Where agents actually start: real building centroids inside each zone's
+    # radius. A jittered circle puts people in the river; a building does not.
+    homes = {}
+    for z in zones:
+        zlon, zlat = z["geometry"]["coordinates"]
+        rad = z["properties"].get("radius", 250)
+        inside = [b for b in buildings if haversine((b[0], b[1]), (zlon, zlat)) <= rad]
+        if len(inside) < 25:
+            # Sparse zone (a park, a port): widen until there is something to
+            # stand on, rather than silently falling back to open ground.
+            inside = sorted(buildings, key=lambda b: haversine((b[0], b[1]), (zlon, zlat)))[:200]
+        # Cap the list so the pack stays small; agents sample from it.
+        step = max(1, len(inside) // 1200)
+        homes[z["properties"]["zone_id"]] = inside[::step][:1200]
+        print(f"    {z['properties']['zone_id']}: {len(homes[z['properties']['zone_id']])} start buildings", flush=True)
+    json.dump(homes, open(os.path.join(out_dir, "homes.json"), "w"), separators=(",", ":"))
+
     json.dump({
         "id": city_id, "name": cfg["name"], "country": cfg["country"],
         "hazard": cfg["hazard"], "hazardLabel": cfg["hazard_label"],

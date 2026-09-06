@@ -88,6 +88,67 @@ mode of a naive shortest-path assignment and the thing real evacuations never do
   people already moving. This is the mechanism by which an overloaded route
   keeps attracting people, and it is exposed as a slider.
 
+## 2d. Where agents start, and how they reach a route
+
+Agents start on **real OSM building centroids** sampled from inside their zone's
+radius, not on a jittered circle. This is both more honest — people start in
+buildings — and a correctness fix: a jittered circle around a waterfront zone
+such as Battery Park City puts a share of the population in the Hudson.
+
+The walk from a front door to a route is a **road path**, precomputed per zone ×
+route by `tools/fetch_city.py` and stored in `approaches.geojson`. Before this,
+that leg was a straight line to the nearest route vertex — which from Battery
+Park City runs across open water. An evacuation model that lets people cross a
+river is not modelling an evacuation. Every metre an agent covers is now on a
+road.
+
+An agent still joins a route at the point nearest its own zone rather than at
+the route's head, which is what keeps route choice a real trade-off: the
+shortest route is often not the closest one to you.
+
+## 2e. Weather and time of day
+
+Eight weather states and three times of day compose into multipliers on
+quantities the model already had:
+
+| Multiplier | Applies to |
+|---|---|
+| `speed` | walking pace, everyone |
+| `perCohort` | extra pace penalty on named cohorts — ice on the elderly, heat on the very young |
+| `capacity` | how many people a route's mouth absorbs per minute |
+| `hazard` | added to the hazard slider, clamped to 1 |
+| `visibility` | how well an agent can judge routes and queues — *not* how fast it walks |
+| `warn` | how long the warning takes to reach someone |
+| `gather` | how long a household takes to become ready to move |
+
+**Every one of these numbers is a modelling judgement, not a measurement.** They
+are deliberately round. The console prints the resulting effect as a sentence,
+and the rule applied throughout is that a condition which cannot be stated as a
+sentence should not be in the model.
+
+Two are worth calling out because they are the least obvious:
+
+- **Fog and smoke barely slow anyone down** (`speed` 0.94) and wreck route
+  choice (`visibility` 0.30). It is the clearest case in the model of
+  *information*, not mobility, being the binding constraint.
+- **Daytime makes gathering slower, not faster** (`gather` 1.25). Households are
+  dispersed across work and school, so a family takes longer to become whole.
+  Evening is the best hour to be told to leave; night is the worst, because the
+  warning takes twice as long to land.
+
+## 2f. Editing the mix
+
+Every share on every axis is editable at runtime, rebalances its axis to 100%,
+and round-trips through the URL as two-digit percentages. Axes moved off their
+source are badged **custom** in the interface, so a screenshot cannot quietly
+misrepresent what it was run on. The cohort axis defaults to the city's own
+per-zone figures; overriding it replaces them with a single city-wide mix, which
+is a deliberate loss of resolution and is labelled as one.
+
+The `spread` multipliers control how much individuals differ from their group's
+mean in speed, information, risk and timing. Setting them to zero produces a
+population of identical agents — a control run, not a city.
+
 ## 3. Illustrative — geometry that looks right but was not surveyed
 
 - **Building heights.** The OSM extract carries no per-building height. Heights

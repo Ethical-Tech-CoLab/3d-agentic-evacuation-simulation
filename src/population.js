@@ -136,10 +136,13 @@ const gauss = (r, mean, sd) => {
   return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 };
 
-const pickShare = (table, r) => {
+/** Draw a key from a {key: share} map. Shares are assumed to sum to 1; any
+ *  rounding shortfall lands on the last key, which is harmless. */
+const pickShare = (shares, r) => {
   let x = r();
-  for (const [k, v] of Object.entries(table)) { x -= v.share; if (x <= 0) return k; }
-  return Object.keys(table)[0];
+  const keys = Object.keys(shares);
+  for (const k of keys) { x -= shares[k]; if (x <= 0) return k; }
+  return keys[keys.length - 1];
 };
 
 /** Zone feature -> cohort counts that preserve the published proportions. */
@@ -164,8 +167,16 @@ function pickCohort(weights, total, r) {
  * survey of these cities, and the app says so wherever it shows them.
  */
 export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.6,
-                                  warningSpread = 5400 }) {
+                                  warningSpread = 5400, mix = null, homes = null }) {
   const r = rng(seed);
+  const m = mix || {
+    cohort: null,
+    unit: Object.fromEntries(Object.entries(TRAVEL_UNITS).map(([k, v]) => [k, v.share])),
+    behaviour: Object.fromEntries(Object.entries(BEHAVIOURS).map(([k, v]) => [k, v.share])),
+    spread: { speed: 1, info: 1, risk: 1, timing: 1 },
+  };
+  const sp = m.spread || { speed: 1, info: 1, risk: 1, timing: 1 };
+
   const totals = zones.map(zoneCohorts);
   const zoneTotals = totals.map(t => t.adult + t.child + t.elderly + t.disabled);
   const grand = zoneTotals.reduce((a, b) => a + b, 0);
@@ -175,29 +186,36 @@ export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.
     let x = r() * grand, zi = 0;
     while (zi < zoneTotals.length - 1 && (x -= zoneTotals[zi]) > 0) zi++;
     const zone = zones[zi];
-    const cohort = pickCohort(totals[zi], zoneTotals[zi], r);
+    // With no cohort override the split is the zone's own published one, which
+    // differs zone to zone. An override replaces it with a single city-wide
+    // mix — a deliberate loss of resolution, and the app labels it as such.
+    const cohort = m.cohort ? pickShare(m.cohort, r)
+                            : pickCohort(totals[zi], zoneTotals[zi], r);
 
     // A child is never alone and rarely in an ad-hoc group; someone in
     // institutional care is disproportionately elderly or disabled.
-    let unitKey = pickShare(TRAVEL_UNITS, r);
+    let unitKey = pickShare(m.unit, r);
     if (cohort === 'child' && (unitKey === 'solo' || unitKey === 'group')) unitKey = 'family';
     if (unitKey === 'institutional' && cohort === 'adult' && r() < 0.6) unitKey = 'family';
     const unit = TRAVEL_UNITS[unitKey];
 
-    const behaviourKey = pickShare(BEHAVIOURS, r);
+    const behaviourKey = pickShare(m.behaviour, r);
     const behaviour = BEHAVIOURS[behaviourKey];
 
-    const info = Math.min(1, Math.max(0, gauss(r, infoQuality, 0.18)));
-    const risk = Math.min(1, Math.max(0, gauss(r, 0.5, 0.2)));
+    // The spread multipliers say how much individuals differ from their group's
+    // mean. At 0 every member of a cohort is identical — a useful control run
+    // and a terrible model of a city.
+    const info = Math.min(1, Math.max(0, gauss(r, infoQuality, 0.18 * sp.info)));
+    const risk = Math.min(1, Math.max(0, gauss(r, 0.5, 0.2 * sp.risk)));
 
     // Walking speed: the individual's own pace, dragged to the unit's pace.
-    const own = Math.max(0.25, gauss(r, COHORTS[cohort].baseSpeed, 0.12));
+    const own = Math.max(0.25, gauss(r, COHORTS[cohort].baseSpeed, 0.12 * sp.speed));
     const speed = own * unit.pace;
 
     // A warning does not reach everyone at once. Better-informed agents hear
     // it sooner; this is the only thing that happens before the lifecycle.
     const warnedAt = Math.max(0, gauss(r, warningSpread * (1 - info) * 0.55,
-                                       warningSpread * 0.15));
+                                       warningSpread * 0.15 * sp.timing));
 
     agents.push({
       id: i,
@@ -209,14 +227,14 @@ export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.
       warnedAt,
       // How long this agent spends confirming the warning, and then waiting on
       // its unit and its neighbours. Both are scaled by who it travels with.
-      seekFor: Math.max(0, gauss(r, behaviour.seek * 900, behaviour.seek * 260)),
+      seekFor: Math.max(0, gauss(r, behaviour.seek * 900, behaviour.seek * 260 * sp.timing)),
       millFor: Math.max(0, gauss(r, behaviour.mill * 900 * unit.millingScale,
-                                 behaviour.mill * 300)),
+                                 behaviour.mill * 300 * sp.timing)),
       // Threshold of danger above which a reluctant agent finally moves.
       reluctance: behaviour.reluctance * (1 - 0.4 * risk),
       // Probability this agent turns back once, mid-route.
       returnChance: behaviour.returns,
-      origin: originIn(zone, r),
+      origin: originIn(zone, r, homes),
       // Runtime state, reset by the engine.
       state: 'unaware', dist: 0, done: false, turnedBack: false,
       route: null, path: null, exitTime: null, doneAt: null, stalled: 0, returnedAt: null,
@@ -225,8 +243,21 @@ export function buildPopulation({ zones, size, seed = 20220316, infoQuality = 0.
   return agents;
 }
 
-function originIn(zone, r) {
-  const rad = (zone.properties.radius || 180) / 111320;   // metres -> deg at ~40N
+/**
+ * Where an agent starts. People start in buildings, so we sample a real OSM
+ * building centroid from inside the zone — which also means nobody starts in
+ * the river, the way a jittered circle around a waterfront zone will happily
+ * put them.
+ */
+function originIn(zone, r, homes) {
+  const list = homes && homes[zone.properties.zone_id];
+  if (list && list.length) {
+    const b = list[Math.floor(r() * list.length)];
+    // A few metres of jitter so a block of flats is not a single point.
+    return [b[0] + (r() - 0.5) * 0.0004, b[1] + (r() - 0.5) * 0.0003];
+  }
+  // Fallback only: a city pack with no building list.
+  const rad = (zone.properties.radius || 180) / 111320;
   const a = r() * 2 * Math.PI, d = Math.sqrt(r()) * rad;
   const [lon, lat] = zone.geometry.coordinates;
   return [lon + (d * Math.cos(a)) / Math.cos((lat * Math.PI) / 180), lat + d * Math.sin(a)];

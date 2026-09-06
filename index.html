@@ -21,6 +21,7 @@
   <div class="row head">
     <button id="play" class="primary">▶ Run</button>
     <button id="reset">Reset</button>
+    <button id="share" title="Copy a link that reproduces this exact run">Link</button>
     <span id="clock" class="clock">T+00:00</span>
   </div>
 
@@ -39,6 +40,43 @@
     <label>Warning spread <output id="spreadOut">90 min</output>
       <input id="spread" type="range" min="15" max="360" step="15" value="90"></label>
     <label>Seed <input id="seed" type="number" value="20220316" step="1"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Population mix <span id="mixBadge" class="badge" hidden>custom</span></legend>
+    <select id="preset"></select>
+    <p id="presetNote" class="note"></p>
+    <div class="tabs mixtabs" id="mixTabs">
+      <button data-axis="cohort" class="on">Who they are</button>
+      <button data-axis="unit">Who with</button>
+      <button data-axis="behaviour">Behaviour</button>
+    </div>
+    <div id="mixSliders" class="mixsliders"></div>
+    <p id="cohortSource" class="note"></p>
+    <div class="row">
+      <button id="mixEven">Even split</button>
+      <button id="mixReset">Reset axis</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>How much individuals differ</legend>
+    <label>Walking speed <output id="spSpeedOut">1.0×</output>
+      <input id="spSpeed" type="range" min="0" max="2.5" step="0.1" value="1"></label>
+    <label>Information <output id="spInfoOut">1.0×</output>
+      <input id="spInfo" type="range" min="0" max="2.5" step="0.1" value="1"></label>
+    <label>Risk tolerance <output id="spRiskOut">1.0×</output>
+      <input id="spRisk" type="range" min="0" max="2.5" step="0.1" value="1"></label>
+    <label>Timing <output id="spTimingOut">1.0×</output>
+      <input id="spTiming" type="range" min="0" max="2.5" step="0.1" value="1"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Weather &amp; time of day</legend>
+    <select id="weather"></select>
+    <select id="tod" class="mt"></select>
+    <p id="envNote" class="note"></p>
+    <div id="envEffect" class="effect"></div>
   </fieldset>
 
   <fieldset>

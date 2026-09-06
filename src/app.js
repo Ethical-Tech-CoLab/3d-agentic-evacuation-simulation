@@ -1,15 +1,24 @@
 // Wiring: pick a city, build a population, run the clock, redraw.
 
 import { buildPopulation, tally, COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
-import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL } from './engine.js';
+import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL, indexApproaches } from './engine.js';
 import { CARTO_STYLE, baseLayers, agentLayers, makeHeight } from './map.js';
 import { CITIES, byId, loadCity } from './cities.js';
+import { AXES, PRESETS, defaultMix, flat, rebalance, mixToParams, mixFromParams, customAxes }
+  from './mix.js';
+import { WEATHER, TIME_OF_DAY, environment, describe } from './conditions.js';
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString('en-US');
 
+const params = new URLSearchParams(location.search);
+
 const state = {
-  cityId: new URLSearchParams(location.search).get('city') || 'mariupol',
+  cityId: params.get('city') || 'mariupol',
+  mix: mixFromParams(params),
+  mixAxis: 'cohort',
+  weather: params.get('w') || 'clear',
+  tod: params.get('tod') || 'day',
   city: null, pack: null, height: null,
   agents: [], routes: [], sim: null,
   running: false, trails: [], last: 0, colourBy: 'cohort',
@@ -31,6 +40,22 @@ async function boot() {
   $('city').innerHTML = CITIES.map(c =>
     `<option value="${c.id}">${c.label} — ${c.sub}</option>`).join('');
   $('city').value = state.cityId;
+
+  $('preset').innerHTML = Object.entries(PRESETS)
+    .map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  $('weather').innerHTML = Object.entries(WEATHER)
+    .map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  $('tod').innerHTML = Object.entries(TIME_OF_DAY)
+    .map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  $('weather').value = state.weather;
+  $('tod').value = state.tod;
+  if (params.get('n')) $('size').value = params.get('n');
+  if (params.get('seed')) $('seed').value = params.get('seed');
+  $('presetNote').textContent = PRESETS.source.note;
+  for (const [k, v] of Object.entries(state.mix.spread)) {
+    const el = $(`sp${k[0].toUpperCase()}${k.slice(1)}`);
+    if (el) el.value = v;
+  }
   bindControls();
   await switchCity(state.cityId);
 }
@@ -73,6 +98,8 @@ function readOpts() {
     hazard: +$('haz').value,
     herd: +$('herd').value,
     timeScale: +$('ts').value,
+    mix: state.mix,
+    env: environment(state.weather, state.tod),
   };
 }
 
@@ -84,11 +111,15 @@ function rebuild() {
   state.agents = buildPopulation({
     zones: state.pack.zones, size: o.size, seed: o.seed,
     infoQuality: o.infoQuality, warningSpread: o.warningSpread,
+    homes: state.pack.homes, mix: state.mix,
   });
-  buildEntries(state.agents, state.routes, o.seed);
+  buildEntries(state.agents, state.routes, o.seed, indexApproaches(state.pack.approaches));
   state.sim = createSim(state.agents, state.routes, o);
   state.trails = [];
   renderRouteList();
+  renderMix();
+  renderEnv();
+  syncUrl();
   draw(emptyStats(o.size));
 }
 
@@ -263,6 +294,63 @@ function bindControls() {
   }
   $('seed').addEventListener('change', rebuild);
   $('city').addEventListener('change', e => switchCity(e.target.value));
+
+  // Population mix
+  for (const b of $('mixTabs').querySelectorAll('button')) {
+    b.addEventListener('click', () => {
+      state.mixAxis = b.dataset.axis;
+      for (const o of $('mixTabs').querySelectorAll('button')) o.classList.toggle('on', o === b);
+      renderMix();
+    });
+  }
+  $('preset').addEventListener('change', e => {
+    const preset = PRESETS[e.target.value];
+    state.mix = preset.mix();
+    $('presetNote').textContent = preset.note;
+    for (const [k, v] of Object.entries(state.mix.spread)) {
+      const el = $(`sp${k[0].toUpperCase()}${k.slice(1)}`);
+      if (el) { el.value = v; $(`${el.id}Out`).textContent = `${(+v).toFixed(1)}×`; }
+    }
+    rebuild();
+  });
+  $('mixEven').addEventListener('click', () => {
+    state.mix[state.mixAxis] = flat(state.mixAxis);
+    rebuild();
+  });
+  $('mixReset').addEventListener('click', () => {
+    const d = defaultMix();
+    state.mix[state.mixAxis] = d[state.mixAxis];
+    rebuild();
+  });
+
+  // How much individuals differ
+  for (const [id, key] of [['spSpeed', 'speed'], ['spInfo', 'info'],
+                           ['spRisk', 'risk'], ['spTiming', 'timing']]) {
+    const el = $(id), out = $(`${id}Out`);
+    out.textContent = `${(+el.value).toFixed(1)}×`;
+    el.addEventListener('input', () => { out.textContent = `${(+el.value).toFixed(1)}×`; });
+    el.addEventListener('change', () => { state.mix.spread[key] = +el.value; rebuild(); });
+  }
+
+  // Weather and time of day apply live — no rebuild, so you can watch fog roll
+  // in over a run that is already going.
+  for (const [id, key] of [['weather', 'weather'], ['tod', 'tod']]) {
+    $(id).addEventListener('change', e => {
+      state[key] = e.target.value;
+      if (state.sim) state.sim.cfg.env = environment(state.weather, state.tod);
+      renderEnv();
+      syncUrl();
+    });
+  }
+
+  $('share').addEventListener('click', async () => {
+    syncUrl();
+    try {
+      await navigator.clipboard.writeText(location.href);
+      $('share').textContent = 'Copied';
+      setTimeout(() => { $('share').textContent = 'Link'; }, 1400);
+    } catch { /* clipboard blocked: the URL bar already has it */ }
+  });
   for (const id of ['bld', 'rds', 'dmg', 'trl']) {
     $(id).addEventListener('change', () => draw(lastStats()));
   }
@@ -301,4 +389,111 @@ function lastStats() {
     evacuated: counts.done, back: counts.back,
     socialProof: onMove / Math.max(state.agents.length, 1),
   };
+}
+
+/* ── Population mix editor ───────────────────────────────────────────────── */
+//
+// The shares are the weakest numbers in the model, so they are the ones you can
+// move. Every edit rebalances the rest of its axis to keep the total at 100%,
+// marks the axis as custom, and lands in the URL — a configured population is a
+// link you can send someone.
+
+function renderMix() {
+  const axis = state.mixAxis;
+  const table = AXES[axis].table;
+  const shares = state.mix[axis];
+  const custom = customAxes(state.mix);
+  $('mixBadge').hidden = custom.length === 0;
+
+  if (axis === 'cohort' && !shares) {
+    // The honest default: the city's own per-zone figures, which no single set
+    // of city-wide sliders can represent without losing that resolution.
+    $('mixSliders').innerHTML = '';
+    $('cohortSource').innerHTML =
+      `Using <b>${state.city.real ? 'the published' : 'this city’s'} per-zone cohort figures</b>. ` +
+      `Move any slider below to replace them with one city-wide mix.`;
+    $('mixSliders').innerHTML = Object.entries(table).map(([k, c]) => {
+      const v = impliedCohortShare(k);
+      return sliderRow(k, c, v);
+    }).join('');
+    bindMixRows();
+    return;
+  }
+  $('cohortSource').innerHTML = axis === 'cohort'
+    ? 'Replaced the per-zone figures with one city-wide mix. <b>Reset axis</b> restores them.'
+    : '';
+  $('mixSliders').innerHTML = Object.entries(table)
+    .map(([k, c]) => sliderRow(k, c, shares[k] ?? 0)).join('');
+  bindMixRows();
+}
+
+/** What the published per-zone figures come to across the whole city — shown so
+ *  the sliders start from the real number rather than from nothing. */
+function impliedCohortShare(key) {
+  let tot = 0, hit = 0;
+  for (const z of state.pack.zones) {
+    const p = z.properties;
+    const counts = {
+      child: p.children || 0, elderly: p.elderly || 0, disabled: p.disabled || 0,
+      adult: Math.max(0, (p.population || 0) - (p.children || 0) - (p.elderly || 0) - (p.disabled || 0)),
+    };
+    tot += p.population || 0;
+    hit += counts[key] || 0;
+  }
+  return tot ? hit / tot : 0;
+}
+
+const sliderRow = (k, c, v) => `
+  <div class="mixrow">
+    <span class="swatch" style="background:rgb(${c.colour.join(',')})"></span>
+    <span class="mlabel">${c.label}</span>
+    <span class="mval" data-val="${k}">${Math.round(v * 100)}%</span>
+    <input type="range" min="0" max="1" step="0.01" value="${v}" data-mix="${k}">
+  </div>`;
+
+function bindMixRows() {
+  for (const el of $('mixSliders').querySelectorAll('input[data-mix]')) {
+    el.addEventListener('input', () => {
+      const axis = state.mixAxis;
+      const base = state.mix[axis] || Object.fromEntries(
+        Object.keys(AXES[axis].table).map(k => [k, impliedCohortShare(k)]));
+      state.mix[axis] = rebalance(base, el.dataset.mix, +el.value);
+      renderMix();
+    });
+    el.addEventListener('change', rebuild);
+  }
+}
+
+/* ── Conditions ─────────────────────────────────────────────────────────── */
+
+function renderEnv() {
+  const env = environment(state.weather, state.tod);
+  $('envNote').textContent = env.notes.join(' ');
+  const { rows, worst } = describe(env);
+  const bar = good => {
+    // One bar, read left-to-right as "how much of normal is left".
+    const pct = Math.max(0, Math.min(1, good)) * 100;
+    const colour = good >= 0.98 ? 'var(--accent)' : good > 0.75 ? '#fbbf24' : '#f87171';
+    return `<span class="bar"><i style="width:${pct}%;background:${colour}"></i></span>`;
+  };
+  $('envEffect').innerHTML =
+    rows.map(([name, val, good]) =>
+      `<div class="erow"><span class="ename">${name}</span>${bar(good)}<span class="eval">${val}</span></div>`).join('') +
+    (worst.length
+      ? `<p class="worst">Falls hardest on: ${worst.map(([k, v]) =>
+          `${AXES.cohort.table[k].label.toLowerCase()} (${Math.round((v - 1) * 100)}%)`).join(', ')}.</p>`
+      : '');
+}
+
+/** A run should be reproducible from its link: city, population, mix, weather. */
+function syncUrl() {
+  const url = new URL(location);
+  const p = url.searchParams;
+  p.set('city', state.cityId);
+  p.set('n', $('size').value);
+  p.set('seed', $('seed').value);
+  p.set('w', state.weather);
+  p.set('tod', state.tod);
+  mixToParams(state.mix, p);
+  history.replaceState({}, '', url);
 }

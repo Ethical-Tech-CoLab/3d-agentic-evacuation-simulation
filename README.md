@@ -95,6 +95,52 @@ vocabulary the CoLab's [Evacuation Behavior Simulator](https://github.com/Ethica
 uses, deliberately. Milling burns down faster the more of the district is
 visibly already moving, so the whole population can stall and then go at once.
 
+## Controlling the population
+
+The shares are the weakest numbers in the model, so they are the ones you can
+move. Every share is a slider; editing one rebalances the rest of its axis to
+keep the total at 100%, marks the axis **custom**, and lands in the URL — so a
+configured population is a link you can send someone.
+
+By default the cohort split is the city's **own per-zone figures**, which no
+single set of city-wide sliders can represent without losing that resolution.
+Touch a cohort slider and the app says plainly that you have replaced them.
+
+There are also four **variability** controls — how much individuals differ from
+their group's mean in speed, information, risk and timing. At zero, everyone in
+a cohort is identical: a useful control run and a terrible model of a city.
+
+**Presets** — each one a claim about a population, with the claim written down:
+*As sourced*, *Ageing district*, *Family district*, *Visitors & crowd*,
+*Drilled population*, *Warning not believed*, *Uniform (control)*.
+
+## Weather and time of day
+
+The same population, on the same roads, evacuates very differently in freezing
+rain at three in the morning than on a clear afternoon. Eight weather states and
+three times of day compose into multipliers on things the model already has —
+walking pace, route capacity, added hazard, how well anyone can judge a route,
+how long the warning takes to land, and how long a household takes to gather.
+The console prints the resulting effect in plain terms, so a run is never
+quietly shaped by numbers nobody looked at.
+
+Conditions apply **live**, without rebuilding the population — you can watch fog
+roll in over a run already under way.
+
+Lower Manhattan, same population and seed, 3,000 agents:
+
+| Conditions | 50th | 90th | Elderly | Disabled |
+|---|---|---|---|---|
+| Clear · evening | 1.3 h | 2.3 h | 1.7 h | 2.0 h |
+| Clear · day | 1.5 h | 2.5 h | 1.8 h | 2.1 h |
+| Heavy rain · day | 1.8 h | 3.4 h | 2.4 h | 3.2 h |
+| Clear · night | 1.8 h | 3.2 h | 2.3 h | 2.8 h |
+| Ice · day | 2.1 h | 4.1 h | 3.5 h | 4.7 h |
+| **Ice · night** | **2.9 h** | **6.6 h** | **5.6 h** | **7.4 h** |
+
+The headline number roughly doubles. The number for disabled evacuees more than
+triples. That gap — not the median — is what the weather actually does.
+
 ### What it shows
 
 The console foregrounds **50th and 90th percentile clearance time**, measured on
@@ -118,6 +164,8 @@ the model rather than being put into it:
 | Damage | 783 UNOSAT points, CE20220223UKR, 14 Mar 2022 | real, severity 0–3 |
 | Zone cohorts | ETC severity model, late Mar–Apr 2022 | real counts; marker lon/lat placed in the city centre, not surveyed centroids |
 | Roads | OSM highway network per city, via Overpass | real; the routes are Dijkstra paths over this graph |
+| Agent origins | real OSM building centroids inside each zone | real; people start in buildings, so nobody starts in the river |
+| Approach legs | road path from each zone to each route, per zone × route | real; every metre an agent walks is on a road |
 | Evacuation routes | 4–5 per city, to real named egress points | real road paths; **which** exits are designated is a judgement, documented per city |
 | Agents | generated here | synthetic; cohort mix real for Mariupol, modelled elsewhere; unit and behaviour mixes modelled everywhere |
 

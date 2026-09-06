@@ -37,16 +37,19 @@ export const byId = id => CITIES.find(c => c.id === id) || CITIES[0];
 
 export async function loadCity(id) {
   const base = `data/cities/${id}`;
-  const [meta, buildings, roads, zones, routes] = await Promise.all([
+  const [meta, buildings, roads, zones, routes, approaches, homes] = await Promise.all([
     fetch(`${base}/meta.json`).then(r => r.json()),
     fetch(`${base}/buildings.json`).then(r => r.json()),
     fetch(`${base}/roads.json`).then(r => r.json()),
     fetch(`${base}/zones.geojson`).then(r => r.json()),
     fetch(`${base}/routes.geojson`).then(r => r.json()),
+    fetch(`${base}/approaches.geojson`).then(r => r.json()),
+    fetch(`${base}/homes.json`).then(r => r.json()),
   ]);
   // Mariupol alone carries a damage layer; the others have no equivalent, and
   // inventing one would be the exact kind of false precision this repo avoids.
   let damage = [];
   if (id === 'mariupol') damage = await fetch(`${base}/damage.json`).then(r => r.json());
-  return { meta, buildings, roads, zones: zones.features, routes: routes.features, damage };
+  return { meta, buildings, roads, zones: zones.features, routes: routes.features,
+           approaches: approaches.features, homes, damage };
 }
