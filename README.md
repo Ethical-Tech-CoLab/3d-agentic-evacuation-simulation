@@ -174,6 +174,15 @@ when an agent actually reached the far end of its route — not when it left the
 district, which flatters anyone who turned back. Some results that fall out of
 the model rather than being put into it:
 
+- **Districts mobilise at different times, not in lockstep.** Social proof is
+  measured per zone — milling is watching your own neighbours, not reading a
+  city-wide statistic — and the warning reaches districts unevenly. Zones
+  diverge by up to 42 percentage points: one district can be 15% mobilised while
+  the one beside it is at 58%.
+- **People re-route around jams, if they can see them.** An agent still in its
+  own district reconsiders every five minutes and will switch if another route
+  is clearly better. In fog, far fewer do — you cannot be re-routed by a queue
+  you cannot see.
 - **Institutional units clear in ~5.9 h against ~3.3 h for people travelling
   alone** — nearly double, on the same routes.
 - **A returner costs itself ~2.6 hours.**
@@ -203,7 +212,7 @@ no agent in Lower Manhattan starts in or crosses the Hudson.
 | Layer | Source | Fidelity |
 |---|---|---|
 | Basemap | CARTO dark-matter (OSM data) | real |
-| Buildings | 45,544 OSM centroids, extruded columns | real footprint positions; **heights are hashed** for skyline, the source carries none |
+| Buildings | OSM centroids, extruded columns | real positions; **heights are OSM's own** where recorded — 96% in Lower Manhattan, 88% in Miami, 14% on the Strip, 0% in Mariupol. The rest get a low synthetic massing, tinted blue so you can see which parts of the skyline are evidence |
 | Damage | 783 UNOSAT points, CE20220223UKR, 14 Mar 2022 | real, severity 0–3 |
 | Zone cohorts | ETC severity model, late Mar–Apr 2022 | real counts; marker lon/lat placed in the city centre, not surveyed centroids |
 | Roads | OSM highway network per city, via Overpass | real; the routes are Dijkstra paths over this graph |

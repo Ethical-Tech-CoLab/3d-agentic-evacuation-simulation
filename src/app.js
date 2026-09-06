@@ -71,9 +71,13 @@ async function switchCity(id) {
   state.height = makeHeight(state.pack.meta.centre);
 
   $('cityName').textContent = state.city.label;
+  const c = state.pack.meta.counts;
+  const realH = c.buildingsWithRealHeight ?? 0;
+  const pctH = Math.round((realH / Math.max(c.buildings, 1)) * 100);
   $('cityHazard').innerHTML =
-    `${state.city.sub} · <span class="muted">${state.pack.meta.counts.exposed.toLocaleString()} exposed · ` +
-    `${state.pack.meta.counts.routes} routes · ${fmt(state.pack.meta.counts.buildings)} buildings</span>`;
+    `${state.city.sub} · <span class="muted">${c.exposed.toLocaleString()} exposed · ` +
+    `${c.routes} routes · ${fmt(c.buildings)} buildings, ` +
+    `<b title="The rest are given a low synthetic massing, tinted blue">${pctH}% at their real height</b></span>`;
   $('cityNote').textContent = state.pack.meta.note;
   // Damage only exists for Mariupol; hide the toggle where it means nothing.
   $('dmg').closest('label').style.display = state.pack.damage.length ? '' : 'none';

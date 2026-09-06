@@ -16,10 +16,11 @@
   25.7745
  ],
  "counts": {
-  "buildings": 14052,
+  "buildings": 14054,
   "roadWays": 3974,
   "routes": 4,
   "zones": 5,
+  "buildingsWithRealHeight": 12405,
   "exposed": 93900
  }
 }

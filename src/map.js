@@ -26,17 +26,31 @@ const ROAD_WIDTH = {
 const roadWidth = c => ROAD_WIDTH[c] ?? 2;
 
 /**
- * Building heights. The OSM extracts carry no per-building height, so we hash
- * the centroid into a plausible skyline — denser and taller toward the city
- * centre. Deliberately *illustrative geometry*, flagged as such in the legend.
+ * Building heights.
+ *
+ * A building entry is [lon, lat, height]; a height of 0 means OpenStreetMap
+ * records none, and only those get a synthetic one. In Lower Manhattan and
+ * Miami that is a few per cent of the skyline; in Las Vegas and Mariupol it is
+ * most of it, and the app says so.
+ *
+ * The synthetic fallback used to be the *only* source, and it was not merely
+ * approximate — it was inverted. It put its tallest buildings in a radial blob
+ * around an arbitrary centre point, which in Lower Manhattan meant 84 m towers
+ * on the Lower East Side and 23 m on Wall Street, with nothing above 100 m in a
+ * skyline that reaches 541 m.
  */
 export function makeHeight(centre) {
   const [clon, clat] = centre;
-  return ([lon, lat]) => {
+  return d => {
+    const real = d[2];
+    if (real > 0) return real;
+    // No recorded height: a low, plausible massing that gets denser toward the
+    // centre. Never tall, so an invented building cannot pose as a landmark.
+    const [lon, lat] = d;
     const h = Math.abs(Math.sin(lon * 12.9898 + lat * 78.233) * 43758.5453) % 1;
-    const d = Math.hypot(lon - clon, lat - clat);
-    const urban = Math.max(0, 1 - d / 0.045);
-    return 9 + h * 12 + urban * (h < 0.82 ? 8 : 42);
+    const dist = Math.hypot(lon - clon, lat - clat);
+    const urban = Math.max(0, 1 - dist / 0.045);
+    return 8 + h * 10 + urban * 14;
   };
 }
 
@@ -76,14 +90,18 @@ export function baseLayers(deck, ctx) {
       radius: 16,
       angle: 45,
       extruded: true,
-      elevationScale: 1.6,
-      getPosition: d => d,
+      elevationScale: 1,
+      getPosition: d => [d[0], d[1]],
       getElevation: height,
+      // Lighter with height, so a real skyline reads as one. Buildings whose
+      // height was invented are tinted cooler and kept dim, so a viewer can
+      // see at a glance which parts of the massing are evidence.
       getFillColor: d => {
-        const v = 58 + Math.min(height(d), 60) * 1.7;
-        return [v * 0.66, v * 0.76, v];
+        const h = height(d);
+        const v = 52 + Math.min(h, 220) * 0.62;
+        return d[2] > 0 ? [v * 0.72, v * 0.80, v] : [v * 0.55, v * 0.62, v * 0.78];
       },
-      opacity: 0.82,
+      opacity: 0.85,
     }));
   }
 

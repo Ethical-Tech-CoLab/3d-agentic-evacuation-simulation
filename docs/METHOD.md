@@ -170,12 +170,51 @@ The `spread` multipliers control how much individuals differ from their group's
 mean in speed, information, risk and timing. Setting them to zero produces a
 population of identical agents — a control run, not a city.
 
+## 2g. How agents affect each other
+
+Three channels, and it is worth being precise about their reach.
+
+**Congestion** is the strongest: households slow each other through queueing at
+a route's mouth and through density on the route itself.
+
+**Social proof** is measured **per zone**, blended 75/25 with the city-wide
+figure. Milling is watching your own neighbours out of your own window, not
+reading a city-wide statistic. This works only because the warning also reaches
+districts unevenly — a per-zone lag, drawn from the run's seed and **modelled,
+not sourced**, since which district hears first is not knowable in advance. With
+neither, every district mobilised in lockstep, because local proof had nothing
+to amplify.
+
+**Route choice** couples through crowd-following and through the queue an agent
+expects. Agents reconsider their route every five simulated minutes while still
+in their own district — never once on the route — and switch only if an
+alternative is better by a clear margin. An agent whose information, degraded by
+visibility, falls below 0.35 cannot be re-routed at all: you cannot avoid a
+queue you cannot see.
+
+**What this is not.** There is no pairwise or network influence: nobody talks to
+anybody in particular, and information never propagates person to person. There
+is no within-household coordination at runtime — a family of five is one agent
+whose pace was set when it was built, with no reunification event. The returner
+does not go back *for* anyone; it is a probability, not a link. The honest label
+is **mean-field coupling with local neighbourhoods**: agents respond to
+aggregates that other agents produce, at zone resolution, rather than to other
+agents.
+
 ## 3. Illustrative — geometry that looks right but was not surveyed
 
-- **Building heights.** The OSM extract carries no per-building height. Heights
-  are hashed from the centroid into a plausible Soviet-plan skyline — mostly
-  5-storey stock, taller blocks toward the centre. The *positions* are real; the
-  *heights* are not.
+- **Building heights**, where OSM has none. Heights now come from OSM's own
+  `height` and `building:levels` tags: 96% of Lower Manhattan, 88% of Miami, 14%
+  of the Las Vegas Strip, and none of Mariupol, whose extract carries no height
+  data at all. The remainder get a low synthetic massing and are tinted cooler,
+  so a viewer can see which parts of a skyline are evidence.
+
+  The previous fallback was the only source, and it was not merely approximate —
+  it was **inverted**. A radial hash around an arbitrary centre put 84 m towers
+  on the Lower East Side and 23 m on Wall Street, and capped the whole city at
+  about 100 m in a skyline that reaches 541 m. Anything built on that geometry
+  was misleading, and it is why the synthetic fallback is now deliberately
+  short: an invented building must not be able to pose as a landmark.
 - **Which exits are designated.** The routes themselves are real paths over the
   real road graph, computed by `tools/fetch_city.py` — nothing about them is
   drawn by hand. But *which* egress points count as evacuation exits is a

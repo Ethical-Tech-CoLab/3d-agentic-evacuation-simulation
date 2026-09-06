@@ -253,3 +253,72 @@ test('a cohort override changes the population it produces', () => {
   const share = t.elderly.n / scaleOf(agents).people;
   assert.ok(Math.abs(share - 0.7) < 0.01, `elderly share came out at ${(share * 100).toFixed(1)}%`);
 });
+
+/* ── Agents influencing each other ───────────────────────────────────────── */
+
+test('districts mobilise at different times, not in lockstep', () => {
+  // Social proof is per-zone: a zone that starts moving pulls its own residents
+  // out while the district next to it can still be sitting still. With one
+  // city-wide number every zone moved together, which no evacuation does.
+  const { agents, sim } = build('mariupol', 6000);
+  let maxGap = 0;
+  for (let i = 0; i < 1200; i++) {
+    const s = sim.tick(30);
+    const proofs = Object.values(s.zoneProof);
+    maxGap = Math.max(maxGap, Math.max(...proofs) - Math.min(...proofs));
+  }
+  assert.ok(maxGap > 0.05,
+    `zones never diverged by more than ${(maxGap * 100).toFixed(1)} percentage points — they are moving in lockstep`);
+  // And each zone must be reported, not just the city.
+  const zones = new Set(agents.map(a => a.zone));
+  const s = sim.tick(30);
+  assert.equal(Object.keys(s.zoneProof).length, zones.size);
+});
+
+test('agents re-route around a jam, and only when they can see it', () => {
+  // A tight capacity should push some households onto another route mid-walk.
+  const jammed = build('mariupol', 6000, { routeCapacity: 120, reroute: true });
+  const fixed = build('mariupol', 6000, { routeCapacity: 120, reroute: false });
+  const a = run(jammed.sim, 3000), b = run(fixed.sim, 3000);
+  assert.ok(a.reroutes > 0, 'nobody ever changed route despite a jammed corridor');
+  assert.equal(b.reroutes, 0, 'agents re-routed with re-routing switched off');
+
+  // Someone who cannot judge a queue cannot be re-routed by one: in thick fog
+  // far fewer people change their minds.
+  const foggy = build('mariupol', 6000, { routeCapacity: 120, reroute: true,
+                                          env: environment('fog', 'night') });
+  const f = run(foggy.sim, 3000);
+  assert.ok(f.reroutes < a.reroutes,
+    `fog produced ${Math.round(f.reroutes)} re-routes vs ${Math.round(a.reroutes)} in clear conditions`);
+});
+
+test('re-routing does not corrupt the per-route headcounts', () => {
+  const { agents, routes, sim } = build('mariupol', 4000, { routeCapacity: 150, reroute: true });
+  run(sim, 3000);
+  // Whatever switching happened, each household is counted on exactly one route.
+  const committed = agents.filter(a => a.route).reduce((s, a) => s + a.weight, 0);
+  const claimed = routes.reduce((s, r) => s + r.taken, 0);
+  assert.ok(Math.abs(committed - claimed) < 1,
+    `routes claim ${Math.round(claimed)} people but ${Math.round(committed)} are committed`);
+  assert.ok(routes.every(r => r.taken >= -1e-6), 'a route ended up with negative headcount');
+});
+
+/* ── Building heights ────────────────────────────────────────────────────── */
+
+test('building heights come from OSM where OSM has them', () => {
+  const meta = c => JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cities', c, 'meta.json'), 'utf8'));
+  for (const city of ['nyc', 'miami']) {
+    const m = meta(city);
+    const share = (m.counts.buildingsWithRealHeight ?? 0) / m.counts.buildings;
+    assert.ok(share > 0.8, `${city} only has real heights for ${(share * 100).toFixed(0)}% of buildings`);
+  }
+  // Lower Manhattan must actually be tall, and tall in the right place.
+  const b = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cities/nyc/buildings.json'), 'utf8'));
+  const near = (lon, lat, r = 0.004) => b.filter(x =>
+    Math.hypot(x[0] - lon, x[1] - lat) < r && x[2] > 0).map(x => x[2]);
+  const tallest = xs => (xs.length ? Math.max(...xs) : 0);
+  const fidi = tallest(near(-74.0113, 40.7089));      // Financial District
+  const les = tallest(near(-73.9835, 40.7180));       // Lower East Side
+  assert.ok(fidi > 200, `tallest building near the Financial District is only ${fidi} m`);
+  assert.ok(fidi > les, `the Lower East Side (${les} m) is taller than the Financial District (${fidi} m)`);
+});

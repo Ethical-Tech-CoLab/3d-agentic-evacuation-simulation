@@ -232,6 +232,18 @@ function weight(agents, zones, mix) {
 }
 
 function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes }) {
+  // A warning does not reach every district at the same moment. Sirens, door
+  // knocking, a police cordon and word of mouth all propagate unevenly, and
+  // which district hears first is not knowable in advance — so the lag is drawn
+  // per zone from the run's seed and is MODELLED, not sourced.
+  //
+  // Without this every district mobilised in lockstep, because there was
+  // nothing for local social proof to amplify: each zone saw the same warning
+  // at the same time and behaved identically. It is the difference between
+  // districts that makes watching your own neighbours mean anything.
+  const lagR = rng((seed >>> 0) ^ 0x2a17);
+  const zoneLag = {};
+  for (const z of zones) zoneLag[z.properties.zone_id] = lagR() * warningSpread * 0.7;
   const r = rng(seed);
   const m = mix || {
     cohort: null,
@@ -278,7 +290,8 @@ function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes 
 
     // A warning does not reach everyone at once. Better-informed agents hear
     // it sooner; this is the only thing that happens before the lifecycle.
-    const warnedAt = Math.max(0, gauss(r, warningSpread * (1 - info) * 0.55,
+    const warnedAt = Math.max(0, zoneLag[zone.properties.zone_id] +
+                                 gauss(r, warningSpread * (1 - info) * 0.55,
                                        warningSpread * 0.15 * sp.timing));
 
     agents.push({
@@ -289,6 +302,7 @@ function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes 
       group: unit.size(r),
       info, risk,
       warnedAt,
+      zoneLag: zoneLag[zone.properties.zone_id],
       // How long this agent spends confirming the warning, and then waiting on
       // its unit and its neighbours. Both are scaled by who it travels with.
       seekFor: Math.max(0, gauss(r, behaviour.seek * 900, behaviour.seek * 260 * sp.timing)),

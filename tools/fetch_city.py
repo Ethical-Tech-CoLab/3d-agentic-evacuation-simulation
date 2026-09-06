@@ -104,17 +104,64 @@ def haversine(a, b):
     return 2 * R * math.asin(math.sqrt(h))
 
 
+# Metres per storey where only a level count is tagged. Deliberately generic:
+# it is the standard rule of thumb, not a per-city survey.
+STOREY_M = 3.2
+
+
+def parse_height(tags):
+    """Real height in metres from OSM tags, or None if the building has none.
+
+    Order matters: an explicit `height` beats a levels count, and both beat
+    guessing. Returning None rather than a default is the point — the renderer
+    has to know which buildings it is inventing, so the app can say what share
+    of a skyline is real.
+    """
+    h = tags.get("height")
+    if h:
+        try:
+            # "52", "52 m", "52.5", occasionally "170 ft"
+            txt = str(h).strip().lower().replace("metres", "").replace("meter", "").replace("m", "").strip()
+            if "'" in str(h) or "ft" in str(h).lower():
+                return round(float(str(h).lower().replace("ft", "").replace("'", "").strip()) * 0.3048, 1)
+            v = float(txt)
+            if 1 <= v <= 700:
+                return round(v, 1)
+        except (TypeError, ValueError):
+            pass
+    lv = tags.get("building:levels")
+    if lv:
+        try:
+            v = float(str(lv).split(";")[0].strip())
+            if 0 < v <= 180:
+                return round(v * STOREY_M, 1)
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
 def fetch_buildings(bbox):
+    """Building centroids with their real height where OSM records one.
+
+    Each entry is [lon, lat, height] with height 0 meaning "not known" — those,
+    and only those, get a synthetic height at render time.
+    """
     s, w, n, e = bbox
     q = f"""[out:json][timeout:600];
 way["building"]({s},{w},{n},{e});
-out center;"""
+out center tags;"""
     data = overpass(q)
     pts = []
+    real = 0
     for el in data.get("elements", []):
         c = el.get("center")
-        if c:
-            pts.append([round(c["lon"], 5), round(c["lat"], 5)])
+        if not c:
+            continue
+        h = parse_height(el.get("tags", {}))
+        if h is not None:
+            real += 1
+        pts.append([round(c["lon"], 5), round(c["lat"], 5), h if h is not None else 0])
+    print(f"    real heights: {real:,} of {len(pts):,} ({100*real/max(len(pts),1):.0f}%)", flush=True)
     return pts
 
 
@@ -323,16 +370,14 @@ def build_city(city_id):
     print(f"[{city_id}] {cfg['name']} — {cfg['hazard_label']}", flush=True)
 
     bpath = os.path.join(out_dir, "buildings.json")
-    if os.path.exists(bpath):
-        # Mariupol's is vendored rather than fetched: its provenance (the ETC
-        # mariupol_lights.json centroids) is better documented than a fresh
-        # Overpass pull would be, so it is never re-fetched.
+    if os.path.exists(bpath) and not os.environ.get("REFETCH_BUILDINGS"):
         buildings = json.load(open(bpath))
     else:
         print("  buildings…", flush=True)
         buildings = fetch_buildings(cfg["bbox"])
         json.dump(buildings, open(bpath, "w"), separators=(",", ":"))
-    print(f"  buildings: {len(buildings):,}", flush=True)
+    with_height = sum(1 for b in buildings if len(b) > 2 and b[2] > 0)
+    print(f"  buildings: {len(buildings):,} ({with_height:,} with a real height)", flush=True)
 
     rpath = os.path.join(out_dir, "roads.json")
     if os.path.exists(rpath):
@@ -444,6 +489,7 @@ def build_city(city_id):
         "note": cfg["note"], "bbox": cfg["bbox"], "centre": cfg["centre"],
         "counts": {"buildings": len(buildings), "roadWays": len(ways),
                    "routes": len(routes), "zones": len(zones),
+                   "buildingsWithRealHeight": with_height,
                    "exposed": sum(z["properties"]["population"] for z in zones)},
     }, open(os.path.join(out_dir, "meta.json"), "w"), indent=1)
     print(f"  wrote {out_dir}", flush=True)

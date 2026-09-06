@@ -130,36 +130,41 @@ export function indexApproaches(features) {
  * people. `herd` is how strongly the crowd pulls; it is what turns four
  * adequate routes into one jammed one.
  */
-export function chooseRoute(agent, routes, herd, visibility = 1) {
-  let best = null, bestCost = Infinity;
-  const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
-  // Fog, smoke and darkness do not slow anyone down much; they wreck the
-  // judgement the choice rests on. An agent that cannot see the queue joins it.
+/**
+ * What an agent believes a route will cost it, in seconds. The single source of
+ * truth for route choice: the first decision and every later reconsideration
+ * use this, because scoring a switch under a different metric than the one that
+ * made the original choice means the switch is always vetoed — which is exactly
+ * what happened, and why nobody ever re-routed.
+ */
+export function routeCost(agent, route, routes, herd, visibility, totalTaken) {
   const seen = agent.info * visibility;
+  const e = agent.entries[route.id];
+  const travel = (e.walk + e.remaining) / agent.speed;
+
+  // Expected queueing: everyone already committed and not yet out, over the
+  // route's capacity — seen only as clearly as the agent's information allows.
+  const committed = Math.max(0, route.taken - route.out);
+  const expected = (committed / Math.max(route.capacity / 60, 0.1)) * seen;
+
+  // Idiosyncratic preference: the road you know, the direction your family
+  // lives in, the bridge you have always used.
+  const taste = e.bias;
+
+  // Following the crowd, strongest in the badly informed and in ad-hoc groups.
+  const pull = agent.unit === 'group' ? 1.5 : 1;
+  const follow = herd * (1 - seen) * pull * (route.taken / totalTaken) * travel;
+
+  return (travel + expected) * taste - follow;
+}
+
+export function chooseRoute(agent, routes, herd, visibility = 1) {
+  const seen = agent.info * visibility;
+  const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
+  let best = null, bestCost = Infinity;
   for (const r of routes) {
     if (!r.open && seen > 0.7) continue;            // only the informed know
-    const e = agent.entries[r.id];
-    const travel = (e.walk + e.remaining) / agent.speed;
-
-    // What the agent expects to lose to queueing. The load that matters is
-    // everyone already committed to the route and not yet out — not just the
-    // handful visible at its mouth right now. An agent sees this in proportion
-    // to how good its information is; the rest is guesswork.
-    const committed = Math.max(0, r.taken - r.out);
-    const expected = (committed / Math.max(r.capacity / 60, 0.1)) * seen;
-
-    // Idiosyncratic preference: the road you know, the direction you have
-    // family in, the bridge you have always used. Without this every agent of
-    // a given speed makes an identical choice and the whole city takes one
-    // route, which is the one thing real evacuations never do.
-    const taste = e.bias;
-
-    // Following the crowd. Strongest in the badly-informed, and in ad-hoc
-    // groups, which form out of people already moving.
-    const pull = agent.unit === 'group' ? 1.5 : 1;
-    const follow = herd * (1 - seen) * pull * (r.taken / totalTaken) * travel;
-
-    const cost = (travel + expected) * taste - follow;
+    const cost = routeCost(agent, r, routes, herd, visibility, totalTaken);
     if (cost < bestCost) { bestCost = cost; best = r; }
   }
   return best || routes[0];
@@ -184,6 +189,7 @@ export function buildEntries(agents, routes, seed = 20220316, approaches = null)
 /** Commit an agent to a route: build the polyline it will actually walk. */
 function assign(agent, route) {
   const e = agent.entries[route.id];
+  if (agent.route && agent.route !== route) agent.route.taken -= agent.weight;
   agent.route = route;
   // Front door → road approach leg → the route itself, all on real geometry.
   agent.path = measurePath([agent.origin, ...e.coords, ...route.coords.slice(e.index + 1)]);
@@ -192,10 +198,48 @@ function assign(agent, route) {
   route.taken += agent.weight;   // people, not households
 }
 
+/**
+ * Reconsider a route already chosen.
+ *
+ * Route choice used to be made once, at departure, and never revisited — which
+ * meant nobody ever saw a jam and went another way, in a model whose whole
+ * subject is what people know. Now anyone still in their own district, who can
+ * actually see something (good information, decent visibility), re-evaluates
+ * periodically and will switch if an alternative looks meaningfully better.
+ *
+ * Two constraints keep this honest. You can only switch before you have
+ * committed to the route — once you are on it, you are on it. And an
+ * alternative has to be better by a clear margin, or the whole crowd
+ * oscillates between two routes forever, which is a simulation artefact and
+ * not a thing people do.
+ */
+function reconsider(agent, routes, herd, visibility, t) {
+  if (agent.dist >= agent.entryDist) return false;      // already on the route
+  if (t < agent.nextThink) return false;
+  agent.nextThink = t + RECONSIDER_EVERY;
+  // Someone who cannot judge a queue cannot be re-routed by one.
+  if (agent.info * visibility < 0.35) return false;
+
+  const current = agent.route;
+  const best = chooseRoute(agent, routes, herd, visibility);
+  if (best === current) return false;
+  const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
+  const cost = r => routeCost(agent, r, routes, herd, visibility, totalTaken);
+  if (cost(current) > cost(best) * SWITCH_MARGIN) {
+    // Rewind to the front door: a change of mind restarts the walk out.
+    agent.dist = 0;
+    assign(agent, best);
+    agent.reroutes = (agent.reroutes || 0) + 1;
+    return true;
+  }
+  return false;
+}
+
 export const DEFAULTS = {
   routeCapacity: 900,   // people/minute each route's mouth can absorb
   hazard: 0.35,         // 0..1 danger on the leg out of the district
   herd: 0.35,           // 0..1 how strongly agents follow the crowd
+  reroute: true,        // may agents change route when they meet a jam?
   timeScale: 120,       // simulated seconds per real second
   // Weather and time of day, from conditions.js. Every field is a multiplier
   // on something the model already had, so conditions can be changed mid-run.
@@ -237,11 +281,36 @@ const JAM_RATIO = 2.0;
  * to say something about.
  */
 const CRAWL = 0.03;
+/** How much of a zone's social proof is what it can see of itself, as opposed
+ *  to what it can see of the city. Milling is a local act. */
+const LOCAL_WEIGHT = 0.75;
+/** How often an agent reconsiders its route, in simulated seconds. */
+const RECONSIDER_EVERY = 300;
+/**
+ * How much better an alternative must look before someone actually switches.
+ *
+ * Some hysteresis is needed or the crowd oscillates between two routes for
+ * ever, which is a simulation artefact rather than a thing people do. But this
+ * is a margin on the *whole journey*, and whole journeys differ by 5-15%, not
+ * 25% — set at 1.25 it vetoed every switch the model ever proposed, including
+ * an agent sitting on an 8,365-second route with a 7,227-second one in plain
+ * view. Backtracking to the front door is itself a real deterrent, so the
+ * margin does not have to do all the work.
+ */
+const SWITCH_MARGIN = 1.08;
 
 export function createSim(agents, routes, opts = {}) {
   const cfg = { ...DEFAULTS, ...opts };
   let t = 0;
   const people = agents.reduce((s, a) => s + (a.weight || 1), 0);
+
+  // Per-zone bookkeeping for local social proof.
+  const zonePeople = {}, zoneMoving = {}, zoneProof = {};
+  for (const a of agents) {
+    zonePeople[a.zone] = (zonePeople[a.zone] || 0) + a.weight;
+    zoneMoving[a.zone] = 0;
+    zoneProof[a.zone] = 0;
+  }
   const r0 = rng((opts.seed || 20220316) ^ 0xbeef);
   for (const a of agents) {
     // Decided once, up front, so it does not change under the agent mid-run —
@@ -249,6 +318,9 @@ export function createSim(agents, routes, opts = {}) {
     a.willReturnBase = r0() < a.returnChance;
     a.willReturn = a.willReturnBase;
     a.returnAtFrac = 0.2 + r0() * 0.45;
+    // Staggered so the whole city does not reconsider on the same tick.
+    a.nextThink = r0() * RECONSIDER_EVERY;
+    a.reroutes = 0;
   }
 
   function tick(dt) {
@@ -265,16 +337,30 @@ export function createSim(agents, routes, opts = {}) {
     //
     // Queueing: people inside the last 300 m before their route's mouth.
     // Occupancy: people on the route itself, which sets its density.
-    // Social proof: the share of the district visibly on the move, which is
-    // what collapses milling — a street sits still, then empties at once.
+    // Social proof: the share visibly on the move — what collapses milling.
+    //
+    // Social proof is measured PER ZONE, not city-wide. Milling is watching
+    // your neighbours out of your own window, not reading a city-wide
+    // statistic; with one global number every district mobilised in lockstep,
+    // which is the one thing a real evacuation never does. A zone that starts
+    // moving now pulls its own residents out; the district next to it can
+    // still be sitting still.
     let onTheMove = 0;
+    for (const z of Object.keys(zoneMoving)) { zoneMoving[z] = 0; }
     for (const a of agents) {
-      if (a.state === 'evacuating' || a.state === 'returning' || a.done) onTheMove += a.weight;
+      const moving = a.state === 'evacuating' || a.state === 'returning' || a.done;
+      if (moving) { onTheMove += a.weight; zoneMoving[a.zone] += a.weight; }
       if (!a.route || a.done || a.turnedBack) continue;
       if (a.dist > 0 && a.dist < a.entryDist && a.entryDist - a.dist < 300) a.route.queued += a.weight;
       else if (a.dist >= a.entryDist) a.route.onRoute += a.weight;
     }
     const socialProof = onTheMove / Math.max(people, 1);
+    // What each zone can see of itself, blended with a little of what it can
+    // see of the city as a whole — sirens, main roads, the news.
+    for (const z of Object.keys(zoneMoving)) {
+      zoneProof[z] = LOCAL_WEIGHT * (zoneMoving[z] / Math.max(zonePeople[z], 1)) +
+                     (1 - LOCAL_WEIGHT) * socialProof;
+    }
 
     // Speed-density on the route itself, not only at its mouth. A route with a
     // capacity has a density at which that capacity is achieved; past it the
@@ -307,7 +393,7 @@ export function createSim(agents, routes, opts = {}) {
         case 'seeking':
           // Confirming the warning. Poor information makes this drag; a city
           // already visibly emptying confirms it for you.
-          if (t >= a.seekUntil - a.seekFor * socialProof) {
+          if (t >= a.seekUntil - a.seekFor * zoneProof[a.zone]) {
             a.state = 'milling';
             a.millLeft = a.millFor;
           }
@@ -319,7 +405,7 @@ export function createSim(agents, routes, opts = {}) {
           // burns down faster the more of the district is already moving.
           // Gathering takes longer when the household is scattered across a
           // working day, and less time when everyone is already home.
-          a.millLeft -= (dt / env.gather) * (1 + 2.5 * socialProof);
+          a.millLeft -= (dt / env.gather) * (1 + 2.5 * zoneProof[a.zone]);
           // The reluctant stay put while they judge the danger survivable —
           // and the weather is part of that danger.
           const danger = Math.min(1, cfg.hazard + env.hazard);
@@ -346,6 +432,7 @@ export function createSim(agents, routes, opts = {}) {
           break;
 
         case 'evacuating': {
+          if (cfg.reroute) reconsider(a, routes, cfg.herd, env.visibility, t);
           let v = paceOf(a, cfg, env);
           // A queue creeps; it does not stop dead. Treating anything below a
           // threshold as "not moving" deadlocked the slowest agents: a disabled
@@ -400,7 +487,8 @@ export function createSim(agents, routes, opts = {}) {
       counts[a.state] += a.weight;
     }
 
-    return { t, socialProof, people,
+    return { t, socialProof, people, zoneProof: { ...zoneProof },
+             reroutes: agents.reduce((n, a) => n + (a.reroutes ? a.weight : 0), 0),
              moving: counts.evacuating + counts.returning,
              waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
              evacuated: counts.done, filtered: counts.filtered,
@@ -438,7 +526,7 @@ export function createSim(agents, routes, opts = {}) {
     for (const a of agents) {
       a.dist = 0; a.done = false; a.turnedBack = false; a.stalled = 0;
       a.exitTime = null; a.doneAt = null; a.route = null; a.path = null;
-      a.state = 'unaware'; a.returnedAt = null;
+      a.state = 'unaware'; a.returnedAt = null; a.reroutes = 0; a.nextThink = 0;
       // Restore the decision made at construction, rather than ANDing with
       // whatever the last run left behind — which silently threw away every
       // returner that had already returned.
