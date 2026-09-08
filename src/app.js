@@ -3,7 +3,7 @@
 import { buildPopulation, tally, scaleOf, individualLegend,
          COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL, indexApproaches } from './engine.js';
-import { CARTO_STYLE, baseLayers, agentLayers, makeHeight } from './map.js';
+import { BASEMAPS, baseLayers, agentLayers, makeHeight } from './map.js';
 import { CITIES, byId, loadCity, isKnown } from './cities.js';
 import { AXES, PRESETS, defaultMix, flat, rebalance, mixToParams, mixFromParams, customAxes }
   from './mix.js';
@@ -19,6 +19,7 @@ const state = {
   mix: mixFromParams(params),
   mixAxis: 'cohort',
   weather: params.get('w') || 'clear',
+  basemap: BASEMAPS[params.get('map')] ? params.get('map') : 'dark',
   tod: params.get('tod') || 'day',
   city: null, pack: null, height: null,
   agents: [], routes: [], sim: null,
@@ -27,14 +28,51 @@ const state = {
 
 const initial = byId(state.cityId).view;
 const map = new maplibregl.Map({
-  container: 'map', style: CARTO_STYLE,
+  container: 'map', style: BASEMAPS[state.basemap].style,
   center: [initial.longitude, initial.latitude],
   zoom: initial.zoom, pitch: initial.pitch, bearing: initial.bearing,
   antialias: true,
+  // Let the camera lie almost flat, so a skyline can be seen along a street
+  // rather than only from above.
+  maxPitch: 85,
 });
+// Rotation is on by default in MapLibre but hidden behind a right-drag that
+// nobody discovers, so it is also on the keyboard and in the console.
+map.dragRotate.enable();
+map.touchZoomRotate.enableRotation();
+map.keyboard.enable();
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 
-const overlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
+/** Turn the camera by `deg`, the short way round, and keep going past north. */
+function spin(deg) {
+  map.easeTo({ bearing: map.getBearing() + deg, duration: 420 });
+}
+
+// A slow continuous orbit, for looking at a run rather than driving it.
+let orbit = null;
+function toggleOrbit(on) {
+  if (orbit) { cancelAnimationFrame(orbit); orbit = null; }
+  if (!on) return;
+  let last = performance.now();
+  const step = now => {
+    const dt = (now - last) / 1000; last = now;
+    map.setBearing(map.getBearing() + dt * 6);   // 6 degrees a second: one turn a minute
+    orbit = requestAnimationFrame(step);
+  };
+  orbit = requestAnimationFrame(step);
+}
+
+// Any manual camera input stops the orbit rather than fighting it.
+for (const ev of ['mousedown', 'touchstart', 'wheel']) {
+  map.getCanvas().addEventListener(ev, () => {
+    if (orbit) { toggleOrbit(false); const b = $('orbit'); if (b) b.classList.remove('on'); }
+  }, { passive: true });
+}
+
+// Replacing a MapLibre style tears down the WebGL context the deck overlay was
+// built against, so the overlay cannot simply be re-added — it has to be a new
+// one. Hence a mutable handle rather than a const.
+let overlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
 map.on('load', () => { map.addControl(overlay); boot(); });
 
 async function boot() {
@@ -53,6 +91,9 @@ async function boot() {
   if (params.get('n')) $('size').value = params.get('n');
   if (params.get('seed')) $('seed').value = params.get('seed');
   $('presetNote').textContent = PRESETS.source.note;
+  for (const o of $('basemap').querySelectorAll('button')) o.classList.toggle('on', o.dataset.map === state.basemap);
+  $('mapNote').textContent = BASEMAPS[state.basemap].note;
+  $('mapCredit').innerHTML = BASEMAPS[state.basemap].credit;
   for (const [k, v] of Object.entries(state.mix.spread)) {
     const el = $(`sp${k[0].toUpperCase()}${k.slice(1)}`);
     if (el) el.value = v;
@@ -173,6 +214,7 @@ function draw(s) {
         height: state.height,
         show: { buildings: $('bld').checked, roads: $('rds').checked,
                 damage: $('dmg').checked, },
+        ground: BASEMAPS[state.basemap].ground,
       }),
       ...agentLayers(deck, {
         live,
@@ -180,6 +222,7 @@ function draw(s) {
         showTrails: $('trl').checked,
         time: s.t,
         colourBy: state.colourBy,
+        ground: BASEMAPS[state.basemap].ground,
       }),
     ],
   });
@@ -381,6 +424,47 @@ function bindControls() {
     });
   }
 
+  // Switching basemap replaces the MapLibre style, which discards any custom
+  // layers with it — so the deck overlay has to be put back once the new style
+  // has loaded, or the agents vanish.
+  for (const b of $('basemap').querySelectorAll('button')) {
+    b.addEventListener('click', () => {
+      const key = b.dataset.map;
+      if (key === state.basemap) return;
+      state.basemap = key;
+      for (const o of $('basemap').querySelectorAll('button')) o.classList.toggle('on', o === b);
+      $('mapNote').textContent = BASEMAPS[key].note;
+      $('mapCredit').innerHTML = BASEMAPS[key].credit;
+      try { map.removeControl(overlay); } catch { /* not attached */ }
+      map.once('styledata', () => {
+        overlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
+        map.addControl(overlay);
+        draw(lastStats());
+      });
+      map.setStyle(BASEMAPS[key].style);
+      syncUrl();
+    });
+  }
+
+  $('rotL').addEventListener('click', () => spin(-45));
+  $('rotR').addEventListener('click', () => spin(45));
+  $('north').addEventListener('click', () => map.easeTo({ bearing: 0, duration: 500 }));
+  $('orbit').addEventListener('click', e => {
+    const on = !e.currentTarget.classList.contains('on');
+    e.currentTarget.classList.toggle('on', on);
+    toggleOrbit(on);
+  });
+  $('flat').addEventListener('click', () => {
+    // Toggle between looking down and looking along the street.
+    const steep = map.getPitch() > 70;
+    map.easeTo({ pitch: steep ? 55 : 82, duration: 600 });
+  });
+  window.addEventListener('keydown', e => {
+    if (e.target.matches('input, select, textarea')) return;
+    if (e.key === 'q' || e.key === 'Q') spin(-15);
+    if (e.key === 'e' || e.key === 'E') spin(15);
+  });
+
   $('share').addEventListener('click', async () => {
     syncUrl();
     try {
@@ -534,6 +618,7 @@ function syncUrl() {
   p.set('n', $('size').value);
   p.set('seed', $('seed').value);
   p.set('w', state.weather);
+  p.set('map', state.basemap);
   p.set('tod', state.tod);
   mixToParams(state.mix, p);
   history.replaceState({}, '', url);

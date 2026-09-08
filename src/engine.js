@@ -34,14 +34,26 @@ export function measurePath(coords) {
   return { coords, cum, length: cum[cum.length - 1] };
 }
 
-export function pointAt(path, dist) {
+export function pointAt(path, dist, offsetM = 0) {
   const { coords, cum, length } = path;
   const d = Math.min(Math.max(dist, 0), length);
   let i = 1;
   while (i < cum.length - 1 && cum[i] < d) i++;
   const t = (d - cum[i - 1]) / Math.max(cum[i] - cum[i - 1], 1e-6);
   const [x0, y0] = coords[i - 1], [x1, y1] = coords[i];
-  return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+  const lon = x0 + (x1 - x0) * t, lat = y0 + (y1 - y0) * t;
+  if (!offsetM) return [lon, lat];
+
+  // Step sideways off the centreline. Every household used to walk the exact
+  // same polyline, so a crowd of six thousand rendered as a single-file string
+  // of beads. Real columns occupy the width of the road, and the lateral place
+  // someone takes in one is stable — you do not weave across the carriageway.
+  const k = Math.cos((lat * Math.PI) / 180);
+  let dx = (x1 - x0) * k, dy = y1 - y0;
+  const m = Math.hypot(dx, dy) || 1;
+  dx /= m; dy /= m;
+  const dLat = offsetM / 111320;
+  return [lon + (-dy * dLat) / (k || 1), lat + dx * dLat];
 }
 
 /** Prepare each route once: measured geometry, capacity, live occupancy. */
@@ -186,15 +198,25 @@ export function buildEntries(agents, routes, seed = 20220316, approaches = null)
   }
 }
 
-/** Commit an agent to a route: build the polyline it will actually walk. */
-function assign(agent, route) {
+/**
+ * Commit an agent to a route: build the polyline it will actually walk.
+ *
+ * `from` is where the walk starts. It is the agent's front door on the first
+ * assignment, and wherever the agent is actually standing when it changes its
+ * mind — a re-route used to reset `dist` to zero, which snapped the household
+ * instantaneously back across the map to its own doorstep. People who change
+ * their mind carry on from where they are.
+ */
+function assign(agent, route, from = null) {
   const e = agent.entries[route.id];
   if (agent.route && agent.route !== route) agent.route.taken -= agent.weight;
+  const start = from || agent.origin;
   agent.route = route;
-  // Front door → road approach leg → the route itself, all on real geometry.
-  agent.path = measurePath([agent.origin, ...e.coords, ...route.coords.slice(e.index + 1)]);
+  // Start → road approach leg → the route itself, all on real geometry.
+  agent.path = measurePath([start, ...e.coords, ...route.coords.slice(e.index + 1)]);
   // The district leg ends where the approach meets the route.
   agent.entryDist = agent.path.cum[e.coords.length];
+  agent.dist = 0;                // measured along the new path, from here
   route.taken += agent.weight;   // people, not households
 }
 
@@ -226,9 +248,8 @@ function reconsider(agent, routes, herd, visibility, t) {
   const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
   const cost = r => routeCost(agent, r, routes, herd, visibility, totalTaken);
   if (cost(current) > cost(best) * SWITCH_MARGIN) {
-    // Rewind to the front door: a change of mind restarts the walk out.
-    agent.dist = 0;
-    assign(agent, best);
+    // Carry on from where the household is actually standing.
+    assign(agent, best, pointAt(agent.path, agent.dist, 0));
     agent.reroutes = (agent.reroutes || 0) + 1;
     return true;
   }
@@ -545,7 +566,7 @@ export function positions(agents) {
     // static crust that read as congestion which was not there.
     if (!a.route || a.done || a.turnedBack) continue;
     out.push({
-      position: pointAt(a.path, a.dist),
+      position: pointAt(a.path, a.dist, a.lane),
       colour: COHORTS[a.cohort].colour,
       routeColour: a.route.colour,
       cohort: a.cohort, zone: a.zone, group: a.group, unit: a.unit,

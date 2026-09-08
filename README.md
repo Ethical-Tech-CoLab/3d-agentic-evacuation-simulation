@@ -53,6 +53,26 @@ photogrammetry GLB and a bespoke Three.js scene, this is **deck.gl over a CARTO
 vector basemap** — keyless, free, ~40 KB of application code, and every layer is
 georeferenced rather than model-space.
 
+## Basemaps and camera
+
+Three basemaps, because they answer different questions:
+
+| | What it is | Good for |
+|---|---|---|
+| **Dark** | CARTO dark matter | The city recedes; the agents carry all the colour |
+| **Colour** | CARTO Voyager | Street names, parks, land use — sharp at every zoom |
+| **Satellite** | Sentinel-2 cloudless (EOX, CC BY 4.0, Copernicus) | Checking a route goes where the ground says it does |
+
+The imagery is Sentinel-2 rather than Esri. Esri's World Imagery is sharper in
+cities, but it is display-only under Esri's terms; this repo's own terrain plan
+sets the rule of preferring Copernicus so an open, attributable, redistributable
+dataset stays open. The honest cost is resolution: the mosaic is 10 m, so it
+softens as you zoom into a street. Attribution follows the active basemap.
+
+The camera turns a full 360°. Drag with the right mouse button, press **Q** and
+**E**, or use the buttons: rotate, face north, tilt to street level, and a slow
+orbit. Any manual input stops the orbit rather than fighting it.
+
 ## Reading the map
 
 By default **every household has its own colour**, built from four of its own

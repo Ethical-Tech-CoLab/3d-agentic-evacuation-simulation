@@ -108,6 +108,21 @@ judgement". Making the count visible is itself a finding.
 
 ---
 
+## P2b — Known ceiling: capacity response saturates at ~25%
+
+Dropping route capacity twentyfold (3000 → 150 people/min) lengthens median
+*walking* time by only ~25%, and the ceiling does not move however concentrated
+departures are (tested at 90, 15 and 5 minute warning spreads). The reason is
+geometric rather than a missing mechanism: over a 9.5 km corridor the column
+spreads out along the route as speeds differ, so density peaks around 1.3
+people/m against a jam density of 4.2 and never approaches it.
+
+Whether that is right depends on something the model does not represent: real
+corridor bottlenecks are usually a *point* — a bridge mouth, a checkpoint, a
+gate — not a uniform property of nine kilometres of road. Adding an explicit
+bottleneck at a named point on a route would probably matter more than tuning
+the density relation. Related to P1 item 5 (route width).
+
 ## P3 — Correctness and hygiene
 
 - **`weight` is no longer a headcount.** Post-stratification leaves a solo

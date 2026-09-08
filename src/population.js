@@ -312,6 +312,9 @@ function buildUnits({ zones, size, seed, infoQuality, warningSpread, mix, homes 
       // Probability this agent turns back once, mid-route.
       returnChance: behaviour.returns,
       origin: originIn(zone, r, homes),
+      // Where in the width of the road this household walks. Fixed per
+      // household, so the column has width without anyone weaving.
+      lane: gauss(r, 0, 8),
       // People this household stands for. Set by weight(); every count in the
       // model is a sum of these, never a count of agents.
       weight: 0,

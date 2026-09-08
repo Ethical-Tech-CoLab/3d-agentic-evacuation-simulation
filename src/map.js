@@ -7,7 +7,70 @@
 
 import { COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 
-export const CARTO_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+/**
+ * Basemaps.
+ *
+ * Three, because they answer different questions. The dark vector map keeps the
+ * city out of the way so the agents carry all the colour. The colour vector map
+ * is the one to read street names and land use from. The satellite view is for
+ * checking that a route goes where the ground says it should.
+ *
+ * The imagery is Sentinel-2 cloudless from EOX, not Esri. Esri's World Imagery
+ * is sharper in cities, but it is display-only under Esri's terms, and this
+ * repo's own terrain plan sets the rule: prefer Copernicus so an open,
+ * attributable, redistributable dataset stays open. The cost is honest — the
+ * Sentinel-2 mosaic is 10 m, so it softens as you zoom into a street.
+ */
+export const BASEMAPS = {
+  dark: {
+    label: 'Dark',
+    note: 'CARTO dark matter. The city recedes; the agents carry the colour.',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    ground: 'dark',
+    credit: 'Basemap © <a href="https://carto.com/about-carto/">CARTO</a>',
+  },
+  colour: {
+    label: 'Colour',
+    note: 'CARTO Voyager. Street names, parks and land use, sharp at every zoom.',
+    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    ground: 'light',
+    credit: 'Basemap © <a href="https://carto.com/about-carto/">CARTO</a>',
+  },
+  satellite: {
+    label: 'Satellite',
+    note: 'Sentinel-2 cloudless (EOX, CC BY 4.0) over Copernicus data — 10 m, so it softens close in. Roads and labels are drawn over it.',
+    style: satelliteStyle(),
+    ground: 'imagery',
+    // Attribution is a licence condition, not decoration: CC BY 4.0 requires it.
+    credit: 'Imagery: <a href="https://s2maps.eu">Sentinel-2 cloudless 2020 by EOX</a> ' +
+            '(modified Copernicus Sentinel data 2020, CC BY 4.0)',
+  },
+};
+
+/** A MapLibre style with the Sentinel-2 mosaic underneath, and CARTO's road and
+ *  label layers on top so the route geometry stays legible over imagery. */
+function satelliteStyle() {
+  return {
+    version: 8,
+    sources: {
+      s2: {
+        type: 'raster',
+        tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg'],
+        tileSize: 256,
+        maxzoom: 15,
+        attribution:
+          'Sentinel-2 cloudless 2020 by <a href="https://s2maps.eu">EOX IT Services</a> ' +
+          '(Contains modified Copernicus Sentinel data 2020)',
+      },
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': '#0b1016' } },
+      { id: 's2', type: 'raster', source: 's2', paint: { 'raster-saturation': 0.12 } },
+    ],
+  };
+}
+
+export const CARTO_STYLE = BASEMAPS.dark.style;
 
 const DAMAGE_COLOUR = [
   [250, 204, 21, 180],   // 0 possible
@@ -63,9 +126,37 @@ const COLOUR_BY = {
   route: { table: null, key: 'route', label: 'Route taken' },
 };
 
+/** Palettes per basemap. Dark-blue massing disappears on imagery and looks
+ *  filthy on a light street map, so each ground gets its own. */
+const GROUND = {
+  dark: {
+    road: [110, 130, 158, 190], minorRoad: [72, 88, 110, 150],
+    building: (v, real) => (real ? [v * 0.72, v * 0.80, v] : [v * 0.55, v * 0.62, v * 0.78]),
+    labelBg: [8, 12, 18, 200], zoneLine: [56, 189, 248, 180], zoneFill: [56, 189, 248, 30],
+    buildingOpacity: 0.85,
+  },
+  light: {
+    road: [90, 105, 130, 150], minorRoad: [140, 152, 170, 110],
+    // Warm concrete rather than blue steel: on a pale street map, cool grey
+    // massing reads as a shadow rather than as buildings.
+    building: (v, real) => (real ? [v * 0.95, v * 0.90, v * 0.83] : [v * 0.80, v * 0.82, v * 0.86]),
+    labelBg: [255, 255, 255, 225], zoneLine: [2, 132, 199, 210], zoneFill: [2, 132, 199, 28],
+    buildingOpacity: 0.92,
+  },
+  imagery: {
+    road: [235, 238, 245, 140], minorRoad: [200, 208, 220, 90],
+    // Over imagery the massing has to read as built form without hiding the
+    // ground it stands on.
+    building: (v, real) => (real ? [v * 0.92, v * 0.88, v * 0.80] : [v * 0.72, v * 0.74, v * 0.78]),
+    labelBg: [8, 12, 18, 215], zoneLine: [125, 211, 252, 225], zoneFill: [125, 211, 252, 22],
+    buildingOpacity: 0.80,
+  },
+};
+
 export function baseLayers(deck, ctx) {
   const { ColumnLayer, ScatterplotLayer, PathLayer, TextLayer } = deck;
   const { city, zones, routes, damage, buildings, roads, show, height } = ctx;
+  const g = GROUND[ctx.ground] || GROUND.dark;
   const layers = [];
 
   if (show.roads) {
@@ -73,7 +164,7 @@ export function baseLayers(deck, ctx) {
       id: 'roads',
       data: roads,
       getPath: d => d.coords,
-      getColor: d => (roadWidth(d.cls) >= 6 ? [110, 130, 158, 190] : [72, 88, 110, 150]),
+      getColor: d => (roadWidth(d.cls) >= 6 ? g.road : g.minorRoad),
       getWidth: d => roadWidth(d.cls),
       widthMinPixels: 0.6,
       widthMaxPixels: 8,
@@ -99,9 +190,10 @@ export function baseLayers(deck, ctx) {
       getFillColor: d => {
         const h = height(d);
         const v = 52 + Math.min(h, 220) * 0.62;
-        return d[2] > 0 ? [v * 0.72, v * 0.80, v] : [v * 0.55, v * 0.62, v * 0.78];
+        return g.building(v, d[2] > 0);
       },
-      opacity: 0.85,
+      opacity: g.buildingOpacity,
+      updateTriggers: { getFillColor: ctx.ground },
     }));
   }
 
@@ -123,10 +215,13 @@ export function baseLayers(deck, ctx) {
     id: 'routes',
     data: routes,
     getPath: r => r.coords,
-    getColor: r => (r.open ? [...r.colour, 225] : [110, 118, 130, 120]),
-    getWidth: 26,
-    widthMinPixels: 3,
-    widthMaxPixels: 12,
+    // Thin and semi-transparent on purpose: the route is a guide, and drawn
+    // any heavier it is wider than the crowd walking it, so a column of
+    // households reads as one solid tube instead of as people.
+    getColor: r => (r.open ? [...r.colour, 150] : [110, 118, 130, 90]),
+    getWidth: 10,
+    widthMinPixels: 1.5,
+    widthMaxPixels: 5,
     capRounded: true,
     jointRounded: true,
     updateTriggers: { getColor: routes.map(r => r.open).join() },
@@ -149,8 +244,8 @@ export function baseLayers(deck, ctx) {
     data: zones,
     getPosition: f => f.geometry.coordinates,
     getRadius: f => f.properties.radius || 180,
-    getFillColor: [56, 189, 248, 30],
-    getLineColor: [56, 189, 248, 180],
+    getFillColor: g.zoneFill,
+    getLineColor: g.zoneLine,
     lineWidthMinPixels: 1.5,
     stroked: true,
   }));
@@ -164,11 +259,12 @@ export function baseLayers(deck, ctx) {
     getPosition: d => d.at,
     getText: d => d.text,
     getSize: 11,
-    getColor: d => d.colour,
+    getColor: d => (ctx.ground === 'light' ? d.colour.map(c => c * 0.55) : d.colour),
     getPixelOffset: [0, -15],
+    updateTriggers: { getColor: ctx.ground, getBackgroundColor: ctx.ground },
     fontFamily: 'ui-monospace, monospace',
     background: true,
-    getBackgroundColor: [8, 12, 18, 200],
+    getBackgroundColor: g.labelBg,
     backgroundPadding: [4, 2],
     characterSet: 'auto',
   }));
@@ -176,7 +272,7 @@ export function baseLayers(deck, ctx) {
   return layers;
 }
 
-export function agentLayers(deck, { live, trails, showTrails, time, colourBy }) {
+export function agentLayers(deck, { live, trails, showTrails, time, colourBy, ground }) {
   const layers = [];
   const spec = COLOUR_BY[colourBy];
   const colourOf = d => {
@@ -209,7 +305,11 @@ export function agentLayers(deck, { live, trails, showTrails, time, colourBy }) 
     getRadius: d => 12 + Math.sqrt(d.group) * 7,
     radiusMinPixels: 1.6,
     radiusMaxPixels: 6,
-    updateTriggers: { getPosition: time, getFillColor: `${time}|${colourBy}` },
+    // A dot with no edge vanishes into bright imagery or a pale street map.
+    stroked: ground !== 'dark',
+    getLineColor: ground === 'light' ? [255, 255, 255, 210] : [10, 14, 20, 190],
+    lineWidthMinPixels: 0.8,
+    updateTriggers: { getPosition: time, getFillColor: `${time}|${colourBy}`, getLineColor: ground },
   }));
 
   return layers;

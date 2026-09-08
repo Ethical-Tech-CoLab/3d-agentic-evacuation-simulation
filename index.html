@@ -99,6 +99,25 @@
   </fieldset>
 
   <fieldset>
+    <legend>Basemap</legend>
+    <div class="tabs tabs3" id="basemap">
+      <button data-map="dark" class="on">Dark</button>
+      <button data-map="colour">Colour</button>
+      <button data-map="satellite">Satellite</button>
+    </div>
+    <p id="mapNote" class="note"></p>
+    <div class="cam">
+      <button id="rotL" title="Rotate left 45° (or press Q)">⟲</button>
+      <button id="north" title="Face north">N</button>
+      <button id="rotR" title="Rotate right 45° (or press E)">⟳</button>
+      <button id="flat" title="Look along the street, or down at the city">⛰</button>
+      <button id="orbit" title="Orbit the city slowly">◎</button>
+    </div>
+    <p class="note">Drag with the right mouse button to swing the camera all the
+      way round; <b>Q</b> and <b>E</b> nudge it.</p>
+  </fieldset>
+
+  <fieldset>
     <legend>Scene</legend>
     <label class="check"><input id="bld" type="checkbox" checked> Buildings</label>
     <label class="check"><input id="rds" type="checkbox" checked> Road network</label>
@@ -131,7 +150,7 @@
 </section>
 
 <footer id="credits">
-  Basemap © <a href="https://carto.com/about-carto/">CARTO</a>, data ©
+  <span id="mapCredit">Basemap © <a href="https://carto.com/about-carto/">CARTO</a></span>, data ©
   <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ·
   roads and buildings from OpenStreetMap · damage points UNITAR/UNOSAT CE20220223UKR ·
   cohorts from <a href="https://github.com/Ethical-Tech-CoLab/mariupol-evacuation-model">ETC mariupol-evacuation-model</a> ·
