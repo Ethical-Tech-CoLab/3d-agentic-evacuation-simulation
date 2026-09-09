@@ -131,7 +131,10 @@ const COLOUR_BY = {
 const GROUND = {
   dark: {
     road: [110, 130, 158, 190], minorRoad: [72, 88, 110, 150],
+    ramp: h => 52 + Math.min(h, 220) * 0.62,
     building: (v, real) => (real ? [v * 0.72, v * 0.80, v] : [v * 0.55, v * 0.62, v * 0.78]),
+    // Strong shading is what gives the night view its depth.
+    material: { ambient: 0.35, diffuse: 0.6, shininess: 32, specularColor: [30, 40, 55] },
     labelBg: [8, 12, 18, 200], zoneLine: [56, 189, 248, 180], zoneFill: [56, 189, 248, 30],
     buildingOpacity: 0.85,
   },
@@ -139,17 +142,35 @@ const GROUND = {
     road: [90, 105, 130, 150], minorRoad: [140, 152, 170, 110],
     // Warm concrete rather than blue steel: on a pale street map, cool grey
     // massing reads as a shadow rather than as buildings.
-    building: (v, real) => (real ? [v * 0.95, v * 0.90, v * 0.83] : [v * 0.80, v * 0.82, v * 0.86]),
+    // On a cream street map a building has to be DARKER than the ground to read
+    // as a building. Lighter and it washes out; heavily shaded and it goes
+    // black. Mid-tone warm grey is the narrow band that works.
+    // With lighting off the fill IS the pixel, so these are chosen to sit
+    // between a cream basemap (~245) and black: a mid warm grey that darkens
+    // nothing and disappears into nothing.
+    ramp: h => 168 + Math.min(h, 220) * 0.24,
+    building: (v, real) => (real ? [v * 0.86, v * 0.83, v * 0.77] : [v * 0.80, v * 0.82, v * 0.86]),
     labelBg: [255, 255, 255, 225], zoneLine: [2, 132, 199, 210], zoneFill: [2, 132, 199, 28],
-    buildingOpacity: 0.92,
+    buildingOpacity: 0.90,
+    // Lighting off entirely. deck.gl's shading was the real culprit on light
+    // grounds: at low ambient the side faces went black, and at high ambient the
+    // added light blew them past white. Flat shading makes the fill colour
+    // exactly what you see, and height still reads through the ramp and the
+    // overlap of the massing.
+    material: false,
   },
   imagery: {
     road: [235, 238, 245, 140], minorRoad: [200, 208, 220, 90],
-    // Over imagery the massing has to read as built form without hiding the
-    // ground it stands on.
-    building: (v, real) => (real ? [v * 0.92, v * 0.88, v * 0.80] : [v * 0.72, v * 0.74, v * 0.78]),
+    // Over imagery the massing must read as built form without blotting out the
+    // ground it stands on. The dark ramp used on the night map turned Manhattan
+    // into a black smudge over the satellite view — the buildings were there,
+    // they were simply painted almost the colour of the background they were
+    // meant to stand out from.
+    ramp: h => 160 + Math.min(h, 220) * 0.30,
+    building: (v, real) => (real ? [v * 0.97, v * 0.94, v * 0.87] : [v * 0.82, v * 0.84, v * 0.88]),
     labelBg: [8, 12, 18, 215], zoneLine: [125, 211, 252, 225], zoneFill: [125, 211, 252, 22],
-    buildingOpacity: 0.80,
+    buildingOpacity: 0.62,
+    material: false,
   },
 };
 
@@ -187,13 +208,10 @@ export function baseLayers(deck, ctx) {
       // Lighter with height, so a real skyline reads as one. Buildings whose
       // height was invented are tinted cooler and kept dim, so a viewer can
       // see at a glance which parts of the massing are evidence.
-      getFillColor: d => {
-        const h = height(d);
-        const v = 52 + Math.min(h, 220) * 0.62;
-        return g.building(v, d[2] > 0);
-      },
+      getFillColor: d => g.building(g.ramp(height(d)), d[2] > 0),
       opacity: g.buildingOpacity,
-      updateTriggers: { getFillColor: ctx.ground },
+      material: g.material,
+      updateTriggers: { getFillColor: ctx.ground, material: ctx.ground },
     }));
   }
 
