@@ -80,7 +80,7 @@ const flatLike = shares => {
 export const PRESETS = {
   source: {
     label: 'As sourced',
-    note: 'Cohorts from the city’s own figures; unit and behaviour shares as shipped.',
+    note: '',   // filled in per city from the pack's own demography record
     mix: () => defaultMix(),
   },
   ageing: {
@@ -104,11 +104,15 @@ export const PRESETS = {
     }),
   },
   visitors: {
-    label: 'Visitors & crowd',
-    note: 'A resort strip or a stadium: mostly adults, in ad-hoc groups, who do not know the city. Fast on their feet, badly wrong about the exits.',
+    label: 'Strip visitors (not residents)',
+    note: 'The population actually on the Las Vegas Strip at any hour is visitors, not Clark County residents — and their age structure is very different. ' +
+          'Child share derived from LVCVA: ~13–14% of visitors bring anyone under 21. Mean visitor age 43.6 (2024). ' +
+          'The elderly and disabled shares here are MODELLED, not sourced: travel selects for mobility, but no published visitor figure was found.',
     mix: () => ({
       ...defaultMix(),
-      cohort: { adult: 0.80, child: 0.10, elderly: 0.07, disabled: 0.03 },
+      // adult dominates because leisure travel selects hard for working-age
+      // adults; see the note for which of these four numbers has a source.
+      cohort: { adult: 0.79, child: 0.06, elderly: 0.11, disabled: 0.04 },
       unit: { solo: 0.22, family: 0.24, group: 0.52, institutional: 0.02 },
       behaviour: { prompt: 0.26, seeker: 0.38, milling: 0.28, reluctant: 0.03, returner: 0.05 },
     }),

@@ -333,9 +333,48 @@ MODELLED_ZONES = {
     ],
 }
 
-# Age structure used to split a modelled zone into cohorts. Roughly the US urban
-# profile; stated as modelled, unlike Mariupol's published counts.
-US_SPLIT = {"children": 0.17, "elderly": 0.16, "disabled": 0.11}
+# Real cohort structure per city, from the US Census Bureau's American Community
+# Survey (ACS) 2024 1-year estimates, retrieved via the Census Reporter API.
+#
+# The four cohorts are made MUTUALLY EXCLUSIVE so they partition the population:
+#
+#   child     under 18
+#   elderly   65 and over
+#   disabled  ages 18-64 with a disability   (older and younger disabled people
+#             fall in `elderly` and `child`, so nobody is counted twice)
+#   adult     everyone else
+#
+# Tables B01001 (sex by age) and B18101 (sex by age by disability status).
+#
+# RESOLUTION CAVEAT, stated because it matters: these are COUNTY figures applied
+# to a district. Lower Manhattan is not demographically identical to the whole
+# of New York County, and Brickell is not Miami-Dade. Sub-county geographies
+# (PUMA, community district) were not reachable through the open API. Real
+# county data beats the generic US average this replaced, but it is not the
+# neighbourhood.
+CITY_COHORTS = {
+    "nyc": {
+        "children": 0.133, "elderly": 0.187, "disabled": 0.059,
+        "geography": "New York County (Manhattan), NY",
+        "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+    },
+    "miami": {
+        "children": 0.197, "elderly": 0.172, "disabled": 0.039,
+        "geography": "Miami-Dade County, FL",
+        "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+    },
+    "vegas": {
+        # Residents of Clark County. For the Strip this is arguably the wrong
+        # population — see the "Strip visitors" mix in src/mix.js, and the note
+        # below.
+        "children": 0.215, "elderly": 0.165, "disabled": 0.074,
+        "geography": "Clark County, NV",
+        "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+        "caveat": ("Residents of Clark County. At any given hour the Strip is "
+                   "mostly visitors, whose age structure is very different — "
+                   "use the 'Strip visitors' population mix for that."),
+    },
+}
 
 
 def zone_features(city_id):
@@ -345,10 +384,11 @@ def zone_features(city_id):
         src = json.load(open(os.path.join(ROOT, "data", "pois.geojson")))
         return [f for f in src["features"] if f["properties"]["poi_type"] == "origin_zone"]
     out = []
+    split = CITY_COHORTS[city_id]
     for zid, name, lon, lat, radius, pop in MODELLED_ZONES[city_id]:
-        ch = round(pop * US_SPLIT["children"])
-        el = round(pop * US_SPLIT["elderly"])
-        di = round(pop * US_SPLIT["disabled"])
+        ch = round(pop * split["children"])
+        el = round(pop * split["elderly"])
+        di = round(pop * split["disabled"])
         out.append({
             "type": "Feature",
             "properties": {
@@ -485,6 +525,17 @@ def build_city(city_id):
 
     json.dump({
         "id": city_id, "name": cfg["name"], "country": cfg["country"],
+        "demography": (
+            {"source": "Ethical Tech CoLab mariupol-evacuation-model, published "
+                       "emergency-zone cohorts (late Mar-Apr 2022)",
+             "geography": "Five surveyed emergency zones, Mariupol",
+             "real": True}
+            if city_id == "mariupol" else
+            {"source": CITY_COHORTS[city_id]["source"],
+             "geography": CITY_COHORTS[city_id]["geography"],
+             "caveat": CITY_COHORTS[city_id].get("caveat"),
+             "note": "County figures applied to a district; zone populations remain modelled.",
+             "real": True}),
         "hazard": cfg["hazard"], "hazardLabel": cfg["hazard_label"],
         "note": cfg["note"], "bbox": cfg["bbox"], "centre": cfg["centre"],
         "counts": {"buildings": len(buildings), "roadWays": len(ways),

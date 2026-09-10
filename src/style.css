@@ -165,3 +165,5 @@ button.route.unsafe .rname { color: #fca5a5; }
 .cam { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 8px; }
 .cam button { padding: 5px 0; font-size: 13px; line-height: 1; }
 .cam button.on { background: #123524; border-color: rgba(74, 222, 128, 0.5); color: var(--accent); }
+
+.warnText { color: #fca5a5; }

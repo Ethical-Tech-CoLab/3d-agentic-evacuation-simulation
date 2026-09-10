@@ -327,3 +327,49 @@ test('building heights come from OSM where OSM has them', () => {
   assert.ok(fidi > 200, `tallest building near the Financial District is only ${fidi} m`);
   assert.ok(fidi > les, `the Lower East Side (${les} m) is taller than the Financial District (${fidi} m)`);
 });
+
+/* ── Demography provenance ───────────────────────────────────────────────── */
+
+test('each city carries real, sourced cohort figures that partition the population', () => {
+  // The generic US average that used to stand in for three cities is gone.
+  // These are the published values; if a pack is regenerated and the figures
+  // move, this test should be the thing that notices.
+  const EXPECT = {
+    nyc:      { children: 0.133, elderly: 0.187, disabled: 0.059 },
+    miami:    { children: 0.197, elderly: 0.172, disabled: 0.039 },
+    vegas:    { children: 0.215, elderly: 0.165, disabled: 0.074 },
+    mariupol: { children: 0.161, elderly: 0.217, disabled: 0.049 },
+  };
+  for (const city of CITIES) {
+    const meta = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cities', city, 'meta.json'), 'utf8'));
+    assert.ok(meta.demography?.source, `${city} has no recorded demographic source`);
+    assert.ok(meta.demography?.geography, `${city} does not say which geography its figures describe`);
+
+    const zones = load(city, 'zones.geojson').features;
+    const tot = zones.reduce((s, z) => s + z.properties.population, 0);
+    const got = {
+      children: zones.reduce((s, z) => s + z.properties.children, 0) / tot,
+      elderly: zones.reduce((s, z) => s + z.properties.elderly, 0) / tot,
+      disabled: zones.reduce((s, z) => s + z.properties.disabled, 0) / tot,
+    };
+    for (const k of Object.keys(EXPECT[city])) {
+      assert.ok(Math.abs(got[k] - EXPECT[city][k]) < 0.004,
+        `${city} ${k}: ${(got[k] * 100).toFixed(1)}% vs expected ${(EXPECT[city][k] * 100).toFixed(1)}%`);
+    }
+    // The four cohorts must partition: nobody counted twice, nobody missing.
+    const adult = 1 - got.children - got.elderly - got.disabled;
+    assert.ok(adult > 0.4 && adult < 0.8, `${city} implies an adult share of ${(adult * 100).toFixed(1)}%`);
+  }
+});
+
+test('the cities are demographically different from one another', () => {
+  // If they were not, the per-city sourcing would be pointless.
+  const vuln = c => {
+    const z = load(c, 'zones.geojson').features;
+    const tot = z.reduce((s, x) => s + x.properties.population, 0);
+    return z.reduce((s, x) => s + x.properties.vulnerable, 0) / tot;
+  };
+  const shares = CITIES.map(vuln);
+  assert.ok(Math.max(...shares) - Math.min(...shares) > 0.05,
+    `vulnerable shares span only ${((Math.max(...shares) - Math.min(...shares)) * 100).toFixed(1)} points`);
+});

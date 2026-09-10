@@ -4,12 +4,46 @@ Browser 3-D city twins on a **CARTO** basemap, populated by an **agentic
 synthetic population** that has to get out — choosing between real evacuation
 routes traced over each city's actual OpenStreetMap road network.
 
-| City | Hazard | Routes | Buildings | Demography |
+| City | Hazard | Routes | Buildings | Cohort figures |
 |---|---|---|---|---|
-| **Mariupol** | Siege, March 2022 | 4 | 45,544 | **published** ETC severity-model cohorts |
-| **Lower Manhattan** | Coastal storm surge (Zone 1) | 5 | 17,770 | modelled |
-| **Las Vegas Strip** | Mass-gathering egress | 4 | 2,607 | modelled |
-| **Downtown Miami & Brickell** | Hurricane (Zone A) | 4 | 14,052 | modelled |
+| **Mariupol** | Siege, March 2022 | 4 | 45,544 | Published ETC severity-model cohorts, five surveyed zones |
+| **Lower Manhattan** | Coastal storm surge (Zone 1) | 5 | 17,689 | ACS 2024, New York County |
+| **Las Vegas Strip** | Mass-gathering egress | 4 | 2,607 | ACS 2024, Clark County — *but see below* |
+| **Downtown Miami & Brickell** | Hurricane (Zone A) | 4 | 14,054 | ACS 2024, Miami-Dade County |
+
+### Real demography
+
+Every city now carries **real cohort figures**, not a generic average. The three
+US cities come from the Census Bureau's American Community Survey 2024 1-year
+estimates (tables B01001 and B18101, via the Census Reporter API); Mariupol
+keeps its published ETC severity-model cohorts.
+
+The four cohorts are made **mutually exclusive** so they partition the
+population, which is the only way they can be counted without double-counting
+anyone: `child` is under 18, `elderly` is 65 and over, `disabled` is ages 18–64
+with a disability, and `adult` is everyone else.
+
+| | Child | Elderly | Disabled (18–64) | Adult |
+|---|---|---|---|---|
+| Mariupol | 16.1% | 21.7% | 4.9% | 57.2% |
+| Lower Manhattan | 13.3% | 18.7% | 5.9% | 62.1% |
+| Miami-Dade | 19.7% | 17.2% | 3.9% | 59.2% |
+| Clark County | 21.5% | 16.5% | 7.4% | 54.6% |
+| *Strip visitors* | *6%* | *11%* | *4%* | *79%* |
+
+**Two caveats, both stated in the app.** These are **county** figures applied to
+a district — Lower Manhattan is not demographically identical to all of New York
+County, and sub-county geographies were not reachable through the open API.
+Zone *populations* remain modelled; only the cohort *proportions* are sourced.
+
+**And the Las Vegas Strip is a genuine problem.** At any given hour the Strip is
+mostly visitors, not Clark County residents, and their age structure is nothing
+like it. A separate **Strip visitors** population mix is provided: its child
+share is derived from LVCVA visitor-profile data (~13–14% of visitors bring
+anyone under 21; mean visitor age 43.6 in 2024), but its elderly and disabled
+shares are **modelled, not sourced**, and the app says so. Residents against
+visitors is a 45.4% vulnerable share against 21.0%, and it moves median
+clearance from 3.03 h to 2.68 h.
 
 Switch cities in the console, or with `?city=mariupol|nyc|vegas|miami`.
 

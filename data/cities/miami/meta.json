@@ -2,6 +2,13 @@
  "id": "miami",
  "name": "Downtown Miami & Brickell",
  "country": "United States",
+ "demography": {
+  "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+  "geography": "Miami-Dade County, FL",
+  "caveat": null,
+  "note": "County figures applied to a district; zone populations remain modelled.",
+  "real": true
+ },
  "hazard": "hurricane",
  "hazardLabel": "Hurricane \u00b7 Zone A",
  "note": "Illustrative. Footprint of Miami-Dade evacuation Zone A; population is modelled, not surveyed.",

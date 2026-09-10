@@ -72,9 +72,27 @@ clearance time**, which is what moves when capacity or opening hours change.
 
 ## 2b. The three classification axes
 
-**Who they are** (cohort) is the published split for Mariupol and a US-urban
-profile (17% children, 16% elderly, 11% disabled) for the other three, stated as
-modelled everywhere it is shown.
+**Who they are** (cohort) is now sourced in every city. Mariupol uses its
+published ETC severity-model split; the three US cities use ACS 2024 1-year
+estimates (B01001 for age, B18101 for disability by age), retrieved through the
+Census Reporter API and recorded in each pack's `meta.json`.
+
+The cohorts are constructed to be mutually exclusive — child (under 18), elderly
+(65+), disabled (18–64 with a disability), adult (the remainder) — because the
+published categories overlap and a naive reading double-counts every disabled
+child and every disabled pensioner.
+
+Two limits are stated wherever the figures appear. They are **county** figures
+standing in for a district, because sub-county geographies (PUMA, community
+district) were not reachable through the open API; and zone *populations* remain
+modelled, so only the *proportions* are sourced.
+
+The Las Vegas Strip is a case where the sourced figure is arguably the wrong
+one. Clark County residents are real, but the Strip's exposed population at any
+hour is overwhelmingly visitors. A separate visitor mix is offered whose child
+share derives from LVCVA visitor-profile data and whose elderly and disabled
+shares are modelled — labelled as such, because inventing a source would be
+worse than admitting there is not one.
 
 **Who they travel with** (alone 28% / family 44% / ad-hoc group 20% /
 institutional 8%) and **how they behave** (prompt 24% / information-seeker 30% /

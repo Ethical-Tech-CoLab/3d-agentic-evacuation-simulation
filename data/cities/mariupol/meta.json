@@ -2,6 +2,11 @@
  "id": "mariupol",
  "name": "Mariupol",
  "country": "Ukraine",
+ "demography": {
+  "source": "Ethical Tech CoLab mariupol-evacuation-model, published emergency-zone cohorts (late Mar-Apr 2022)",
+  "geography": "Five surveyed emergency zones, Mariupol",
+  "real": true
+ },
  "hazard": "siege",
  "hazardLabel": "Siege \u00b7 March 2022",
  "note": "Retrospective. Zone cohorts are the published ETC severity-model figures.",
@@ -20,6 +25,7 @@
   "roadWays": 5401,
   "routes": 4,
   "zones": 5,
+  "buildingsWithRealHeight": 0,
   "exposed": 37663
  }
 }

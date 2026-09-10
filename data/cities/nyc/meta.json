@@ -2,6 +2,13 @@
  "id": "nyc",
  "name": "Lower Manhattan",
  "country": "United States",
+ "demography": {
+  "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+  "geography": "New York County (Manhattan), NY",
+  "caveat": null,
+  "note": "County figures applied to a district; zone populations remain modelled.",
+  "real": true
+ },
  "hazard": "surge",
  "hazardLabel": "Coastal storm surge \u00b7 Zone 1",
  "note": "Illustrative. Footprint of NYC OEM hurricane evacuation Zone 1; population is modelled, not surveyed.",

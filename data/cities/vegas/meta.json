@@ -2,6 +2,13 @@
  "id": "vegas",
  "name": "Las Vegas Strip",
  "country": "United States",
+ "demography": {
+  "source": "US Census Bureau ACS 2024 1-year, tables B01001 and B18101",
+  "geography": "Clark County, NV",
+  "caveat": "Residents of Clark County. At any given hour the Strip is mostly visitors, whose age structure is very different \u2014 use the 'Strip visitors' population mix for that.",
+  "note": "County figures applied to a district; zone populations remain modelled.",
+  "real": true
+ },
  "hazard": "crowd",
  "hazardLabel": "Mass-gathering egress",
  "note": "Illustrative. The upstream Race Condition marathon corridor, read as a crowd-egress problem.",

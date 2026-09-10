@@ -120,6 +120,7 @@ async function switchCity(id) {
     `${c.routes} routes · ${fmt(c.buildings)} buildings, ` +
     `<b title="The rest are given a low synthetic massing, tinted blue">${pctH}% at their real height</b></span>`;
   $('cityNote').textContent = state.pack.meta.note;
+  if ($('preset').value === 'source') setSourceNote();
   // Damage only exists for Mariupol; hide the toggle where it means nothing.
   $('dmg').closest('label').style.display = state.pack.damage.length ? '' : 'none';
 
@@ -132,6 +133,15 @@ async function switchCity(id) {
   history.replaceState({}, '', url);
 
   rebuild();
+}
+
+/** The "As sourced" preset means something different in each city, so it
+ *  describes the city's own demographic source rather than a fixed sentence. */
+function setSourceNote() {
+  const d = (state.pack && state.pack.meta.demography) || {};
+  $('presetNote').textContent = d.source
+    ? `Cohorts: ${d.source}${d.geography ? ' — ' + d.geography : ''}.`
+    : 'Cohorts from the city’s own figures.';
 }
 
 function readOpts() {
@@ -387,7 +397,8 @@ function bindControls() {
   $('preset').addEventListener('change', e => {
     const preset = PRESETS[e.target.value];
     state.mix = preset.mix();
-    $('presetNote').textContent = preset.note;
+    if (e.target.value === 'source') setSourceNote();
+    else $('presetNote').textContent = preset.note;
     for (const [k, v] of Object.entries(state.mix.spread)) {
       const el = $(`sp${k[0].toUpperCase()}${k.slice(1)}`);
       if (el) { el.value = v; $(`${el.id}Out`).textContent = `${(+v).toFixed(1)}×`; }
@@ -534,9 +545,13 @@ function renderMix() {
     // The honest default: the city's own per-zone figures, which no single set
     // of city-wide sliders can represent without losing that resolution.
     $('mixSliders').innerHTML = '';
+    const dem = state.pack.meta.demography || {};
     $('cohortSource').innerHTML =
-      `Using <b>${state.city.real ? 'the published' : 'this city’s'} per-zone cohort figures</b>. ` +
-      `Move any slider below to replace them with one city-wide mix.`;
+      `<b>Real cohort figures.</b> ${dem.source || 'City figures'}` +
+      (dem.geography ? ` — ${dem.geography}.` : '.') +
+      (dem.note ? ` <span class="muted">${dem.note}</span>` : '') +
+      (dem.caveat ? ` <span class="warnText">${dem.caveat}</span>` : '') +
+      ` Move any slider to replace them with a mix of your own.`;
     $('mixSliders').innerHTML = Object.entries(table).map(([k, c]) => {
       const v = impliedCohortShare(k);
       return sliderRow(k, c, v);

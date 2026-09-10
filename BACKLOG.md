@@ -97,6 +97,14 @@ Show it to two evacuation practitioners and publish what they said. For a model
 with no calibration data this is the cheapest available evidence and is standard
 practice in agent-based modelling.
 
+### 11b. Sub-county demography
+Cohort figures are now real (ACS 2024) but at **county** resolution standing in
+for a district. Lower Manhattan is older and has fewer children than New York
+County as a whole; Brickell is not Miami-Dade. The open Census Reporter endpoint
+would not serve PUMA or community-district geographies and the Census API now
+requires a key. With a key, PUMA-level figures are a small change to
+`CITY_COHORTS` and would remove the largest remaining caveat on the demography.
+
 ### 12. Source or disown the behaviour shares
 The travel-unit split (28/44/20/8) and behaviour split (24/30/26/13/7) are
 attributed to "the evacuation-behaviour literature's broad findings" with no
