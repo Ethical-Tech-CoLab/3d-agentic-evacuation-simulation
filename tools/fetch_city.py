@@ -83,7 +83,7 @@ def overpass(query, tries=3):
             try:
                 req = urllib.request.Request(
                     url, data=("data=" + urllib.parse.quote(query)).encode(),
-                    headers={"User-Agent": "ETC 3d-evacuation-agentic-simulation city pack builder (github.com/Ethical-Tech-CoLab/3d-evacuation-agentic-simulation)"})
+                    headers={"User-Agent": "ETC 3d-agentic-evacuation-simulation city pack builder (github.com/Ethical-Tech-CoLab/3d-agentic-evacuation-simulation)"})
                 with urllib.request.urlopen(req, timeout=600) as r:
                     return json.loads(r.read())
             except Exception as e:                      # noqa: BLE001
