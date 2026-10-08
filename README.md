@@ -1,4 +1,4 @@
-# Mariupol 3D — agentic evacuation twins
+# 3D Evacuation Agentic Simulation
 
 Browser 3-D city twins on a **CARTO** basemap, populated by an **agentic
 synthetic population** that has to get out — choosing between real evacuation
@@ -47,7 +47,7 @@ clearance from 3.03 h to 2.68 h.
 
 Switch cities in the console, or with `?city=mariupol|nyc|vegas|miami`.
 
-**Live:** https://ethical-tech-colab.github.io/mariupol-3d/
+**Live:** https://ethical-tech-colab.github.io/3d-evacuation-agentic-simulation/
 
 > Open-data, **non-operational**. A planning and teaching artifact: one
 > retrospective case that ended in 2022, and three illustrative ones built on
@@ -283,8 +283,8 @@ the picture is illustrative rather than surveyed. Both are labelled in the app.
 No build step, no keys, no backend.
 
 ```sh
-git clone https://github.com/Ethical-Tech-CoLab/mariupol-3d
-cd mariupol-3d
+git clone https://github.com/Ethical-Tech-CoLab/3d-evacuation-agentic-simulation
+cd 3d-evacuation-agentic-simulation
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
