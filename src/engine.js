@@ -67,23 +67,38 @@ export function prepareRoutes(features, capacityPerMin) {
     // took it as "evacuated" would be the most misleading thing this model
     // could do, so they are counted separately.
     safe: f.properties.safe !== false,
+    // A transit exit is a station or landing, not a road out. It is routed
+    // like a bridge — a real road path to the door — but the door can be shut:
+    // by the weather, mode by mode, and by the operator's shutdown clock in a
+    // forecast hazard. Its capacity is its own modelled boarding rate, not the
+    // road-capacity slider.
+    transit: !!f.properties.transit,
+    mode: f.properties.mode || null,          // 'subway' | 'rail' | 'ferry'
+    lines: f.properties.lines || null,
+    baseCapacity: f.properties.transit ? f.properties.capacity : null,
     coords: f.geometry.coordinates,
     path: measurePath(f.geometry.coordinates),
     lengthM: f.properties.length_m || measurePath(f.geometry.coordinates).length,
     colour: ROUTE_COLOURS[i % ROUTE_COLOURS.length],
     capacity: capacityPerMin,   // PEOPLE per minute
-    open: true,
+    open: true,                 // the user's toggle
+    live: true,                 // open AND not suspended or shut down this tick
+    suspended: false,           // shut by weather or by the shutdown clock
+    why: null,                  // 'weather' | 'shutdown' — for the console
     queued: 0,                  // people inside the entry band right now
     onRoute: 0,                 // people on the route itself right now
     density: 0,                 // people per metre on the route
     flowFactor: 1,              // 0..1 speed multiplier from that density
     taken: 0,                   // people that chose it
-    out: 0,                     // people that reached its far end
+    out: 0,                     // households that reached its far end
+    outPeople: 0,               // people that did
   }));
 }
 
 export const ROUTE_COLOURS = [
   [74, 222, 128], [56, 189, 248], [251, 191, 36], [244, 114, 182], [167, 139, 250],
+  [45, 212, 191], [251, 146, 60], [232, 121, 249], [163, 230, 53], [96, 165, 250],
+  [248, 113, 113], [250, 204, 21],
 ];
 
 /**
@@ -123,7 +138,9 @@ function entryFor(agent, route, approaches) {
 export function indexApproaches(features) {
   const out = {};
   for (const f of features || []) {
-    out[`${f.properties.zone_id}|${f.properties.route_id}`] = {
+    // Zone → route approach legs, and station → route transfer legs, in one
+    // table: the key is where the walk starts.
+    out[`${f.properties.zone_id ?? f.properties.from_route}|${f.properties.route_id}`] = {
       entryIndex: f.properties.entry_index,
       length: f.properties.length_m,
       coords: f.geometry.coordinates,
@@ -156,7 +173,7 @@ export function routeCost(agent, route, routes, herd, visibility, totalTaken) {
 
   // Expected queueing: everyone already committed and not yet out, over the
   // route's capacity — seen only as clearly as the agent's information allows.
-  const committed = Math.max(0, route.taken - route.out);
+  const committed = Math.max(0, route.taken - route.outPeople);   // people, both
   const expected = (committed / Math.max(route.capacity / 60, 0.1)) * seen;
 
   // Idiosyncratic preference: the road you know, the direction your family
@@ -175,7 +192,8 @@ export function chooseRoute(agent, routes, herd, visibility = 1) {
   const totalTaken = routes.reduce((s, r) => s + r.taken, 0) || 1;
   let best = null, bestCost = Infinity;
   for (const r of routes) {
-    if (!r.open && seen > 0.7) continue;            // only the informed know
+    if (r.transit && r.suspended && agent.info * visibility > 0.4) continue;   // a closed gate is on the news
+    if (!r.live && seen > 0.7) continue;            // only the informed know
     const cost = routeCost(agent, r, routes, herd, visibility, totalTaken);
     if (cost < bestCost) { bestCost = cost; best = r; }
   }
@@ -261,6 +279,11 @@ export const DEFAULTS = {
   hazard: 0.35,         // 0..1 danger on the leg out of the district
   herd: 0.35,           // 0..1 how strongly agents follow the crowd
   reroute: true,        // may agents change route when they meet a jam?
+  // Hours after T0 at which transit stops running, as the operator would in a
+  // forecast hazard. The MTA suspended the subway at 19:00 before Sandy, seven
+  // and a half hours after the evacuation order; 8 is that precedent rounded.
+  // Infinity means it runs until the weather stops it.
+  transitShutdown: 8,
   timeScale: 120,       // simulated seconds per real second
   // Weather and time of day, from conditions.js. Every field is a multiplier
   // on something the model already had, so conditions can be changed mid-run.
@@ -347,7 +370,19 @@ export function createSim(agents, routes, opts = {}) {
     const env = cfg.env || DEFAULTS.env;
     for (const r of routes) {
       r.queued = 0; r.onRoute = 0;
-      r.capacity = cfg.routeCapacity * env.capacity;
+      if (r.transit) {
+        // Boarding rate for this mode in this weather. A ferry in a gale is
+        // not slow, it is tied up; the clock, if it has run out, shuts the
+        // rest. Either way the station is a closed door and `live` is false.
+        const factor = env.transit?.[r.mode] ?? 1;
+        const shut = t >= (cfg.transitShutdown ?? Infinity) * 3600;
+        r.suspended = shut || factor < 0.05;
+        r.why = shut ? 'shutdown' : factor < 0.05 ? 'weather' : null;
+        r.capacity = r.baseCapacity * factor;
+      } else {
+        r.capacity = cfg.routeCapacity * env.capacity;
+      }
+      r.live = r.open && !r.suspended;
     }
 
     // Three shared, emergent quantities the agents react to. All of them are
@@ -432,7 +467,7 @@ export function createSim(agents, routes, opts = {}) {
           const danger = Math.min(1, cfg.hazard + env.hazard);
           if (a.millLeft <= 0) {
             if (danger >= a.reluctance) {
-              a.state = 'evacuating';
+              a.state = 'evacuating'; a.leftAt = t;
               assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
             } else {
               // Ready to go, and choosing not to. Its own state, because
@@ -447,7 +482,7 @@ export function createSim(agents, routes, opts = {}) {
           // Refusing to leave is not permanent: it is a judgement about the
           // danger, and the danger can rise. Re-checked every tick.
           if (Math.min(1, cfg.hazard + env.hazard) >= a.reluctance) {
-            a.state = 'evacuating';
+            a.state = 'evacuating'; a.leftAt = t;
             assign(a, chooseRoute(a, routes, cfg.herd, env.visibility));
           }
           break;
@@ -466,7 +501,10 @@ export function createSim(agents, routes, opts = {}) {
           const wasInDistrict = a.dist < a.entryDist;
           a.dist += v * dt;
           if (wasInDistrict && a.dist >= a.entryDist) {
-            if (!a.route.open) { a.state = 'back'; a.turnedBack = true; break; }
+            // A road closure is met at the mouth of the road. A station is
+            // found closed at the door, which is the far end of its route, so
+            // a transit route is not checked here.
+            if (!a.route.live && !a.route.transit) { a.state = 'back'; a.turnedBack = true; break; }
             a.exitTime ??= t;
           }
           // The returner: far enough out to be safe, and goes back anyway.
@@ -474,6 +512,19 @@ export function createSim(agents, routes, opts = {}) {
               a.dist > a.path.length * a.returnAtFrac) {
             a.state = 'returning';
             a.returnedAt = t;
+            break;
+          }
+          if (a.dist >= a.path.length && a.route.transit && !a.route.live) {
+            // The station is shut. Nobody sleeps on the steps: the household
+            // picks the best way out that is still running, from where it is
+            // standing — usually a bridge it could have taken an hour ago.
+            // Counted, because "how many people walked to a closed station"
+            // is the question a shutdown clock exists to answer.
+            const here = pointAt(a.path, a.dist, 0);
+            if (!transfer(a, here)) { a.state = 'back'; a.turnedBack = true; break; }
+            a.exitTime ??= t;
+            a.turnedAway = (a.turnedAway || 0) + 1;
+            a.reroutes = (a.reroutes || 0) + 1;
             break;
           }
           if (a.dist >= a.path.length) {
@@ -485,8 +536,10 @@ export function createSim(agents, routes, opts = {}) {
             // when it actually reached the far end. They are different numbers
             // for anyone who turned back, and it is `doneAt` that the clearance
             // percentiles are built on.
+            // `leftAt` is when the household stepped out of its door.
             a.doneAt = t;
             a.route.out++;
+            a.route.outPeople += a.weight;
           }
           break;
         }
@@ -510,10 +563,58 @@ export function createSim(agents, routes, opts = {}) {
 
     return { t, socialProof, people, crawling, zoneProof: { ...zoneProof },
              reroutes: agents.reduce((n, a) => n + (a.reroutes ? a.weight : 0), 0),
+             turnedAway: agents.reduce((n, a) => n + (a.turnedAway ? a.weight : 0), 0),
+             transitOut: routes.reduce((n, r) => n + (r.transit ? r.outPeople : 0), 0),
              moving: counts.evacuating + counts.returning,
              waiting: counts.unaware + counts.seeking + counts.milling + counts.stayed,
              evacuated: counts.done, filtered: counts.filtered,
              back: counts.back, counts };
+  }
+
+  /**
+   * From a shut station door, onto the best route still running. The walk is
+   * the precomputed road leg from this station to that route (a transfer leg
+   * from tools/fetch_city.py), so nobody crosses the river to reach a bridge.
+   * Chosen on what the household can see standing there: distance, and the
+   * queue at the route it would be joining.
+   */
+  function transfer(a, here) {
+    let best = null, bestCost = Infinity, bestPath = null, bestLeg = 0;
+    for (const r of routes) {
+      if (!r.live || r === a.route) continue;
+      const leg = cfg.approaches?.[`${a.route.id}|${r.id}`];
+      let idx, legCoords, walk;
+      if (leg) {
+        idx = leg.entryIndex; legCoords = leg.coords;
+        walk = leg.length + haversine(here, leg.coords[0]);
+      } else {
+        // An old pack without transfer legs: nearest vertex, straight line.
+        idx = 0; let bd = Infinity;
+        for (let i = 0; i < r.coords.length; i++) {
+          const d = haversine(here, r.coords[i]);
+          if (d < bd) { bd = d; idx = i; }
+        }
+        legCoords = [r.coords[idx]]; walk = bd;
+      }
+      const remaining = r.path.length - r.path.cum[idx];
+      const queue = Math.max(0, r.taken - r.outPeople) / Math.max(r.capacity / 60, 0.1);
+      const cost = (walk + remaining) / a.speed + queue;
+      if (cost < bestCost) {
+        bestCost = cost; best = r;
+        bestPath = [here, ...legCoords, ...r.coords.slice(idx + 1)];
+        bestLeg = legCoords.length;
+      }
+    }
+    if (!best) return false;
+    a.route.taken -= a.weight;
+    a.route = best;
+    a.path = measurePath(bestPath);
+    // The transfer walk is this household's leg to its new route: it queues
+    // at that route's mouth like everyone else arriving there.
+    a.entryDist = a.path.cum[bestLeg];
+    a.dist = 0;
+    best.taken += a.weight;
+    return true;
   }
 
   /** Metres per second for an agent right now, given where it is and what the
@@ -541,13 +642,13 @@ export function createSim(agents, routes, opts = {}) {
   function reset() {
     t = 0;
     for (const r of routes) {
-      r.taken = 0; r.out = 0; r.queued = 0; r.onRoute = 0;
-      r.density = 0; r.flowFactor = 1;
+      r.taken = 0; r.out = 0; r.outPeople = 0; r.queued = 0; r.onRoute = 0;
+      r.density = 0; r.flowFactor = 1; r.suspended = false; r.why = null; r.live = r.open;
     }
     for (const a of agents) {
       a.dist = 0; a.done = false; a.turnedBack = false; a.stalled = 0;
-      a.exitTime = null; a.doneAt = null; a.route = null; a.path = null;
-      a.state = 'unaware'; a.returnedAt = null; a.reroutes = 0; a.nextThink = 0;
+      a.exitTime = null; a.doneAt = null; a.leftAt = null; a.route = null; a.path = null;
+      a.state = 'unaware'; a.returnedAt = null; a.reroutes = 0; a.nextThink = 0; a.turnedAway = 0;
       // Restore the decision made at construction, rather than ANDing with
       // whatever the last run left behind — which silently threw away every
       // returner that had already returned.

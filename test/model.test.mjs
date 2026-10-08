@@ -23,8 +23,9 @@ function build(city, size, opts = {}) {
   const homes = load(city, 'homes.json');
   const agents = buildPopulation({ zones, size, homes, seed: 20220316, mix: opts.mix });
   const routes = prepareRoutes(load(city, 'routes.geojson').features, opts.routeCapacity ?? 900);
-  buildEntries(agents, routes, 20220316, indexApproaches(load(city, 'approaches.geojson').features));
-  return { agents, routes, zones, sim: createSim(agents, routes, opts) };
+  const approaches = indexApproaches(load(city, 'approaches.geojson').features);
+  buildEntries(agents, routes, 20220316, approaches);
+  return { agents, routes, zones, sim: createSim(agents, routes, { approaches, ...opts }) };
 }
 
 const run = (sim, steps = 2600, dt = 30) => { let s; for (let i = 0; i < steps; i++) s = sim.tick(dt); return s; };
@@ -210,12 +211,14 @@ test('nobody deadlocks: every cohort still gets out in the worst conditions', ()
 });
 
 test('bad weather makes things worse, and worst for the least mobile', () => {
-  // Measured on time spent walking. Total clearance is dominated by warning and
-  // milling, which are the same for everyone, and that common constant dilutes
-  // the very gap being measured.
+  // Measured on time spent walking, door to safety. Total clearance is
+  // dominated by warning and milling, which are the same for everyone, and
+  // that common constant dilutes the very gap being measured. (It used to be
+  // measured on the route leg alone; for a household whose exit is the
+  // subway station at the end of its own street that leg is zero.)
   const walk = (agents, cohort) => {
-    const xs = agents.filter(a => a.state === 'done' && a.cohort === cohort && a.exitTime != null)
-      .map(a => a.doneAt - a.exitTime);
+    const xs = agents.filter(a => a.state === 'done' && a.cohort === cohort && a.leftAt != null)
+      .map(a => a.doneAt - a.leftAt);
     return median(xs);
   };
   const clear = build('nyc', 3000, { env: environment('clear', 'day') });
@@ -372,4 +375,60 @@ test('the cities are demographically different from one another', () => {
   const shares = CITIES.map(vuln);
   assert.ok(Math.max(...shares) - Math.min(...shares) > 0.05,
     `vulnerable shares span only ${((Math.max(...shares) - Math.min(...shares)) * 100).toFixed(1)} points`);
+});
+
+/* ── Transit: a door the weather and the operator can shut ───────────────── */
+
+test('nyc: the transit exits are real stations routed over the road graph', () => {
+  const { routes } = build('nyc', 500);
+  const transit = routes.filter(r => r.transit);
+  assert.ok(transit.length >= 5, 'Lower Manhattan should carry several transit exits');
+  assert.ok(['subway', 'rail', 'ferry'].every(m => transit.some(r => r.mode === m)),
+    'subway, rail and ferry should each be represented');
+  for (const r of transit) {
+    assert.ok(r.safe && r.baseCapacity > 0 && r.coords.length >= 2);
+  }
+  const inventory = load('nyc', 'transit.geojson').features;
+  assert.ok(inventory.length > 50, 'the station inventory should be the full feed, not just the exits');
+  assert.ok(inventory.every(f => f.properties.source), 'every station must say where it came from');
+});
+
+test('nobody boards after the shutdown clock, and nobody is stranded by it', () => {
+  // Shut transit down one hour in: anyone who reaches a station afterwards must
+  // walk on to a bridge, not be counted out through a closed door — and not be
+  // left on the steps either.
+  const { agents, routes, sim } = build('nyc', 3000, { transitShutdown: 1 });
+  const s = run(sim, 2600);
+  const byTransit = agents.filter(a => a.state === 'done' && a.route.transit);
+  assert.ok(byTransit.every(a => a.doneAt <= 3600 + 30), 'someone boarded after the shutdown');
+  assert.ok(s.turnedAway > 0, 'nobody walked to a closed station, so the test proves nothing');
+  assert.equal(s.back, 0, 'a household was stranded at a shut station with bridges open');
+  assert.ok(routes.filter(r => r.transit).every(r => r.suspended && r.why === 'shutdown'));
+});
+
+test('a gale ties up the ferries; a flooded tunnel slows the trains', () => {
+  const windy = build('nyc', 2000, { env: environment('wind', 'day'), transitShutdown: Infinity });
+  run(windy.sim);
+  const ferries = windy.routes.filter(r => r.mode === 'ferry');
+  assert.ok(ferries.every(r => r.suspended && r.why === 'weather' && r.capacity === 0));
+  assert.ok(windy.agents.every(a => !(a.state === 'done' && a.route.mode === 'ferry')),
+    'someone took a ferry in a gale');
+
+  const clear = build('nyc', 2000, { env: environment('clear', 'day'), transitShutdown: Infinity });
+  const flood = build('nyc', 2000, { env: environment('downpour', 'day'), transitShutdown: Infinity });
+  run(clear.sim); run(flood.sim);
+  const subwayOut = b => b.routes.filter(r => r.mode === 'subway').reduce((n, r) => n + r.outPeople, 0);
+  assert.ok(subwayOut(flood) < subwayOut(clear),
+    `flooding should cut subway boardings: ${subwayOut(flood)} vs ${subwayOut(clear)} in the clear`);
+});
+
+test('transit does not break the unit of account', () => {
+  const got = [1000, 4000].map(n => {
+    const { agents, sim } = build('nyc', n, { transitShutdown: 3 });
+    run(sim);
+    return clearance(agents) / 3600;
+  });
+  const spread = Math.abs(got[0] - got[1]) / Math.min(...got);
+  assert.ok(spread < 0.10,
+    `median clearance with transit varied ${(spread * 100).toFixed(1)}% across sample sizes: ${got.map(v => v.toFixed(2)).join(', ')} h`);
 });

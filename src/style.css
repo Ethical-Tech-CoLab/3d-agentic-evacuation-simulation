@@ -151,6 +151,13 @@ select.mt { margin-top: 5px; }
 .stats div.warn { border-color: rgba(248, 113, 113, 0.55); }
 .stats div.warn b { color: #fca5a5; }
 button.route.unsafe .rname { color: #fca5a5; }
+button.route.suspended { opacity: 0.55; }
+button.route.suspended .rname { color: var(--muted); }
+button.route .mode { font: 9px ui-monospace, monospace; padding: 1px 4px; border-radius: 3px; color: #fff; margin-right: 4px; letter-spacing: 0.02em; }
+button.route .mode.subway { background: rgb(59,130,246); }
+button.route .mode.rail { background: rgb(168,85,247); }
+button.route .mode.ferry { background: rgb(20,184,166); }
+button.route .why { font: 9px ui-monospace, monospace; color: #fca5a5; margin-left: 4px; }
 
 .tabs.tabs5 { grid-template-columns: repeat(5, 1fr); }
 .tabs.tabs5 button { font-size: 9px; padding: 4px 1px; }

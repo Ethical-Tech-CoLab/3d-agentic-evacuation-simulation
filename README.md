@@ -7,7 +7,7 @@ routes traced over each city's actual OpenStreetMap road network.
 | City | Hazard | Routes | Buildings | Cohort figures |
 |---|---|---|---|---|
 | **Mariupol** | Siege, March 2022 | 4 | 45,544 | Published ETC severity-model cohorts, five surveyed zones |
-| **Lower Manhattan** | Coastal storm surge (Zone 1) | 5 | 17,689 | ACS 2024, New York County |
+| **Lower Manhattan** | Coastal storm surge (Zone 1) | 5 road + 7 transit | 17,689 | ACS 2024, New York County |
 | **Las Vegas Strip** | Mass-gathering egress | 4 | 2,607 | ACS 2024, Clark County — *but see below* |
 | **Downtown Miami & Brickell** | Hurricane (Zone A) | 4 | 14,054 | ACS 2024, Miami-Dade County |
 
@@ -247,6 +247,63 @@ the model rather than being put into it:
   filtration, and the households that take it are counted separately, never as
   evacuated.
 
+## Transit — a door the weather can shut
+
+Lower Manhattan does not empty over its bridges. It empties through Fulton
+Street, the PATH, and the Staten Island Ferry — until the operator stops them.
+The city pack now carries every subway complex, PATH station and ferry landing
+inside the zone (66 of them, from the MTA's open station list and the NYC Ferry
+and PATH GTFS feeds), and seven of them are **transit exits**: routed over the
+road graph exactly like a bridge, with their own boarding capacity.
+
+A transit exit differs from a bridge in two ways, and both are the point.
+
+- **The weather shuts it, mode by mode.** Each weather state and time of day
+  carries a multiplier for ferries, subway and rail. A gale ties the boats up
+  (`ferry` 0) before it slows anyone walking; heavy rain halves the subway
+  through flooded tunnels; a severe storm or tornado stops surface rail and
+  boats while the subway, underground, keeps running until the water arrives;
+  at night every mode runs on long headways. Zero means suspended: the station
+  is drawn hollow and grey, and anyone who can see the news stops choosing it.
+- **The operator shuts it on a clock.** In a forecast hazard transit stops
+  *before* the hazard. The MTA suspended the subway at 19:00 the evening before
+  Sandy, seven and a half hours after the evacuation order. The **Transit runs
+  until** slider sets that hour; at 24 h only the weather decides.
+
+A household that walks to a shut station does not sleep on the steps. It picks
+the best route still running, from where it is standing, and walks there along
+a precomputed road leg from that station — so nobody crosses the East River to
+reach the Brooklyn Bridge. Those households are counted: **found the station
+shut** is a number on the console, because it is the number a shutdown clock
+exists to produce.
+
+Lower Manhattan, clear day, 3,000 households, road capacity 900/min:
+
+| Transit runs until | 50th | 90th | Left by transit | Found the station shut |
+|---|---|---|---|---|
+| never (no transit) | 2.61 h | 3.91 h | 0% | 7%* |
+| T+1 h | 2.69 h | 4.05 h | 1% | 15% |
+| **T+2 h** | 2.71 h | **4.79 h** | 11% | **30%** |
+| T+3 h | 2.35 h | 3.58 h | 33% | 10% |
+| T+8 h (Sandy) | 2.35 h | 3.23 h | 43% | 0% |
+| weather only | 2.35 h | 3.23 h | 43% | 0% |
+
+\* The badly informed head for a station they cannot know is shut.
+
+The result that matters is the T+2 row: **a shutdown two hours in is worse than
+having no transit at all.** The 90th-percentile clearance is 53 minutes longer
+than with the stations closed from the start, because nearly a third of the
+population walked to a station, found it shut, and only then started for a
+bridge. It is an emergent result — nothing in the inputs says it — and it is
+exactly the trade-off an operator faces: run the trains as long as the water
+allows, or stop early and send everyone to the bridges from the first minute.
+
+The same population in a gale: ferries carry nobody, the median rises from
+2.35 h to 2.98 h, and 1% of households still walk to Whitehall to find the
+boats tied up. Station locations and line service are real; **the boarding
+capacities and every weather multiplier are modelled** and are listed in
+[docs/METHOD.md](docs/METHOD.md).
+
 ## Tests
 
 ```sh
@@ -258,8 +315,10 @@ model like this has to hold — most importantly that **the answer must not depe
 on how many households are simulated**, which is the defect that a full review
 of this repo turned up first. Others assert that weights sum to the exposed
 population in every city, that a filtration exit is never counted as safety,
-that capacity actually constrains a route, that no cohort can deadlock, and that
-no agent in Lower Manhattan starts in or crosses the Hudson.
+that capacity actually constrains a route, that no cohort can deadlock, that no
+agent in Lower Manhattan starts in or crosses the Hudson, that nobody boards a
+train after the shutdown clock and nobody is stranded by it, and that a gale
+carries nobody by ferry.
 
 ## Layers
 
@@ -273,6 +332,8 @@ no agent in Lower Manhattan starts in or crosses the Hudson.
 | Agent origins | real OSM building centroids inside each zone | real; people start in buildings, so nobody starts in the river |
 | Approach legs | road path from each zone to each route, per zone × route | real; every metre an agent walks is on a road |
 | Evacuation routes | 4–5 per city, to real named egress points | real road paths; **which** exits are designated is a judgement, documented per city |
+| Stations & landings | MTA Subway Stations (NY Open Data), NYC Ferry GTFS, PATH GTFS; Staten Island Ferry and Penn Station placed from the operators' terminal locations | real positions, lines and ADA flags; Lower Manhattan only so far |
+| Transit exits | 7 of those stations, routed over the road graph; transfer legs from each station to every other route | real road paths; **which** stations, and their boarding capacity per minute, are modelled |
 | Agents | generated here | synthetic; cohort mix real for Mariupol, modelled elsewhere; unit and behaviour mixes modelled everywhere |
 
 The hashed building heights and the schematic corridor are the two places where

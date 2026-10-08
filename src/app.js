@@ -3,7 +3,7 @@
 import { buildPopulation, tally, scaleOf, individualLegend,
          COHORTS, TRAVEL_UNITS, BEHAVIOURS } from './population.js';
 import { prepareRoutes, buildEntries, createSim, positions, pointAt, STATE_LABEL, indexApproaches } from './engine.js';
-import { BASEMAPS, baseLayers, agentLayers, makeHeight } from './map.js';
+import { BASEMAPS, baseLayers, agentLayers, makeHeight, MODE_LABEL } from './map.js';
 import { CITIES, byId, loadCity, isKnown } from './cities.js';
 import { AXES, PRESETS, defaultMix, flat, rebalance, mixToParams, mixFromParams, customAxes }
   from './mix.js';
@@ -90,6 +90,7 @@ async function boot() {
   $('tod').value = state.tod;
   if (params.get('n')) $('size').value = params.get('n');
   if (params.get('seed')) $('seed').value = params.get('seed');
+  if (params.get('shut')) $('shut').value = params.get('shut');
   $('presetNote').textContent = PRESETS.source.note;
   for (const o of $('basemap').querySelectorAll('button')) o.classList.toggle('on', o.dataset.map === state.basemap);
   $('mapNote').textContent = BASEMAPS[state.basemap].note;
@@ -123,6 +124,10 @@ async function switchCity(id) {
   if ($('preset').value === 'source') setSourceNote();
   // Damage only exists for Mariupol; hide the toggle where it means nothing.
   $('dmg').closest('label').style.display = state.pack.damage.length ? '' : 'none';
+  // Transit controls likewise: only where the pack has stations and a transit exit.
+  const hasTransit = state.pack.routes.some(f => f.properties.transit);
+  $('shutRow').style.display = hasTransit ? '' : 'none';
+  $('trnRow').style.display = state.pack.transit.length ? '' : 'none';
 
   const v = state.city.view;
   map.flyTo({ center: [v.longitude, v.latitude], zoom: v.zoom,
@@ -152,7 +157,9 @@ function readOpts() {
     seed: +$('seed').value,
     routeCapacity: +$('cap').value,
     hazard: +$('haz').value,
+    transitShutdown: +$('shut').value >= 24 ? Infinity : +$('shut').value,
     herd: +$('herd').value,
+    approaches: state.approaches,
     timeScale: +$('ts').value,
     mix: state.mix,
     env: environment(state.weather, state.tod),
@@ -169,8 +176,9 @@ function rebuild() {
     infoQuality: o.infoQuality, warningSpread: o.warningSpread,
     homes: state.pack.homes, mix: state.mix,
   });
-  buildEntries(state.agents, state.routes, o.seed, indexApproaches(state.pack.approaches));
-  state.sim = createSim(state.agents, state.routes, o);
+  state.approaches = indexApproaches(state.pack.approaches);
+  buildEntries(state.agents, state.routes, o.seed, state.approaches);
+  state.sim = createSim(state.agents, state.routes, { ...o, approaches: state.approaches });
   state.trails = [];
   renderRouteList();
   renderMix();
@@ -221,9 +229,10 @@ function draw(s) {
         damage: state.pack.damage,
         buildings: state.pack.buildings,
         roads: state.pack.roads,
+        transit: state.pack.transit,
         height: state.height,
         show: { buildings: $('bld').checked, roads: $('rds').checked,
-                damage: $('dmg').checked, },
+                damage: $('dmg').checked, transit: $('trn').checked },
         ground: BASEMAPS[state.basemap].ground,
       }),
       ...agentLayers(deck, {
@@ -261,7 +270,10 @@ function renderStats(s) {
     <div><b>${round(inside)}</b><span>still inside</span></div>
     <div class="${s.filtered > 0 ? 'warn' : ''}"><b>${round(s.filtered)}</b><span>left, not to safety</span></div>
     <div><b>${q(0.5)} / ${q(0.9)}</b><span>50th / 90th clearance</span></div>
-    <div class="${s.crawling > 0 ? 'warn' : ''}"><b>${round(s.crawling || 0)}</b><span>reduced to a shuffle</span></div>`;
+    <div class="${s.crawling > 0 ? 'warn' : ''}"><b>${round(s.crawling || 0)}</b><span>reduced to a shuffle</span></div>` +
+    (state.routes.some(r => r.transit) ? `
+    <div><b>${round(s.transitOut || 0)}</b><span>out by train or boat</span></div>
+    <div class="${s.turnedAway > 0 ? 'warn' : ''}"><b>${round(s.turnedAway || 0)}</b><span>found the station shut</span></div>` : '');
 
   $('lifecycle').innerHTML = ['unaware', 'seeking', 'milling', 'stayed', 'evacuating',
                               'returning', 'done', 'filtered', 'back']
@@ -323,10 +335,10 @@ function renderBreakdown() {
 
 function renderRouteList() {
   $('routeList').innerHTML = state.routes.map(r => `
-    <button class="route ${r.open ? '' : 'closed'} ${r.safe ? '' : 'unsafe'}"
-            data-route="${r.id}" title="${r.note}">
+    <button class="route ${r.open ? '' : 'closed'} ${r.safe ? '' : 'unsafe'} ${r.transit ? 'transit' : ''}"
+            data-route="${r.id}" title="${r.note}${r.transit ? ` · ${r.lines} · boards ${r.baseCapacity}/min (modelled)` : ''}">
       <span class="swatch" style="background:rgb(${r.colour.join(',')})"></span>
-      <span class="rname">${r.safe ? '' : '⚠ '}${r.name}</span>
+      <span class="rname">${r.transit ? `<span class="mode ${r.mode}">${MODE_LABEL[r.mode]}</span>` : ''}${r.safe ? '' : '⚠ '}${r.name}<span class="why" data-why="${r.id}"></span></span>
       <span class="rlen">${(r.lengthM / 1000).toFixed(1)} km</span>
       <span class="rtaken" data-taken="${r.id}">0</span>
     </button>`).join('');
@@ -334,7 +346,9 @@ function renderRouteList() {
     b.addEventListener('click', () => {
       const r = state.routes.find(x => x.id === b.dataset.route);
       r.open = !r.open;
+      r.live = r.open && !r.suspended;
       b.classList.toggle('closed', !r.open);
+      if (!state.running) draw(state.last_stats || emptyStats());
     });
   }
 }
@@ -348,6 +362,12 @@ function renderRouteStats() {
       el.style.color = r.flowFactor < 0.6 ? '#f87171'
                      : r.flowFactor < 0.9 ? '#fbbf24' : '';
     }
+    if (r.transit) {
+      const btn = $('routeList').querySelector(`[data-route="${r.id}"]`);
+      const why = $('routeList').querySelector(`[data-why="${r.id}"]`);
+      if (btn) btn.classList.toggle('suspended', !!r.suspended);
+      if (why) why.textContent = r.why === 'weather' ? '· suspended' : r.why === 'shutdown' ? '· shut down' : '';
+    }
   }
 }
 
@@ -357,6 +377,7 @@ function loop(now) {
   state.last = now;
   if (!state.running || !state.sim) return;
   const s = state.sim.tick(dtReal * state.sim.cfg.timeScale);
+  state.last_stats = s;
   sampleTrails();
   draw(s);
 }
@@ -369,6 +390,7 @@ function bindControls() {
     spread: v => `${v} min`,
     cap: v => `${v} /min`,
     haz: v => Number(v).toFixed(2),
+    shut: v => (+v >= 24 ? 'weather only' : `T+${Number(v).toFixed(+v % 1 ? 1 : 0)} h`),
     herd: v => Number(v).toFixed(2),
     ts: v => `${v}×`,
   };
@@ -379,7 +401,7 @@ function bindControls() {
     el.addEventListener('input', () => {
       sync();
       // Conditions apply live; population settings need a rebuild.
-      if (['cap', 'haz', 'herd', 'ts'].includes(id) && state.sim) Object.assign(state.sim.cfg, readOpts());
+      if (['cap', 'haz', 'shut', 'herd', 'ts'].includes(id) && state.sim) Object.assign(state.sim.cfg, readOpts());
     });
     if (['size', 'info', 'spread'].includes(id)) el.addEventListener('change', rebuild);
   }
@@ -609,7 +631,8 @@ function bindMixRows() {
 function renderEnv() {
   const env = environment(state.weather, state.tod);
   $('envNote').textContent = env.notes.join(' ');
-  const { rows, worst } = describe(env);
+  const modes = new Set((state.routes || []).filter(r => r.transit).map(r => r.mode));
+  const { rows, worst } = describe(env, modes);
   const bar = good => {
     // One bar, read left-to-right as "how much of normal is left".
     const pct = Math.max(0, Math.min(1, good)) * 100;
@@ -635,6 +658,7 @@ function syncUrl() {
   p.set('w', state.weather);
   p.set('map', state.basemap);
   p.set('tod', state.tod);
+  if ($('shutRow').style.display !== 'none') p.set('shut', $('shut').value); else p.delete('shut');
   mixToParams(state.mix, p);
   history.replaceState({}, '', url);
 }

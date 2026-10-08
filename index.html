@@ -87,6 +87,9 @@
       <input id="cap" type="range" min="100" max="3000" step="100" value="900"></label>
     <label>Hazard <output id="hazOut">0.35</output>
       <input id="haz" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+    <label id="shutRow" title="When the operator stops the trains and boats ahead of the hazard. The MTA shut the subway 7½ hours after the Sandy evacuation order. At 24 h the weather alone decides.">
+      Transit runs until <output id="shutOut">T+8 h</output>
+      <input id="shut" type="range" min="0" max="24" step="0.5" value="8"></label>
     <label>Crowd-following <output id="herdOut">0.35</output>
       <input id="herd" type="range" min="0" max="1" step="0.05" value="0.35"></label>
     <label>Speed <output id="tsOut">120×</output>
@@ -122,6 +125,7 @@
     <label class="check"><input id="bld" type="checkbox" checked> Buildings</label>
     <label class="check"><input id="rds" type="checkbox" checked> Road network</label>
     <label class="check"><input id="dmg" type="checkbox" checked> Damage points</label>
+    <label class="check" id="trnRow"><input id="trn" type="checkbox" checked> Stations &amp; landings</label>
     <label class="check"><input id="trl" type="checkbox" checked> Agent trails</label>
   </fieldset>
 

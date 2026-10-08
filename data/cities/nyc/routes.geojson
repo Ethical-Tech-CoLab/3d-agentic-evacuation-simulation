@@ -312,6 +312,458 @@
      ]
     ]
    }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T1",
+    "name": "Fulton St \u00b7 subway hub",
+    "note": "Eight lines under one roof; the zone's deepest-reaching station",
+    "length_m": 908,
+    "vertices": 12,
+    "exit": [
+     -74.0095,
+     40.7104
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "subway",
+    "lines": "2 3 4 5 A C J Z",
+    "capacity": 500
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.00083,
+      40.71308
+     ],
+     [
+      -74.0025,
+      40.71269
+     ],
+     [
+      -74.00376,
+      40.71193
+     ],
+     [
+      -74.00428,
+      40.71183
+     ],
+     [
+      -74.00509,
+      40.71214
+     ],
+     [
+      -74.00554,
+      40.71216
+     ],
+     [
+      -74.00611,
+      40.71203
+     ],
+     [
+      -74.00605,
+      40.71192
+     ],
+     [
+      -74.0084,
+      40.71132
+     ],
+     [
+      -74.00867,
+      40.71139
+     ],
+     [
+      -74.00952,
+      40.71039
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T2",
+    "name": "World Trade Center \u00b7 PATH",
+    "note": "Under the Hudson to New Jersey",
+    "length_m": 1109,
+    "vertices": 10,
+    "exit": [
+     -74.0119,
+     40.7127
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "rail",
+    "lines": "PATH to Hoboken and Newark",
+    "capacity": 300
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.00083,
+      40.71308
+     ],
+     [
+      -74.0025,
+      40.71269
+     ],
+     [
+      -74.0037,
+      40.71195
+     ],
+     [
+      -74.00424,
+      40.71183
+     ],
+     [
+      -74.0054,
+      40.71217
+     ],
+     [
+      -74.00767,
+      40.71167
+     ],
+     [
+      -74.00823,
+      40.71206
+     ],
+     [
+      -74.01101,
+      40.71334
+     ],
+     [
+      -74.01178,
+      40.71262
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T3",
+    "name": "Whitehall \u00b7 Staten Island Ferry",
+    "note": "One 4,400-passenger boat every half hour; the first thing a gale stops",
+    "length_m": 2044,
+    "vertices": 12,
+    "exit": [
+     -74.013,
+     40.7012
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "ferry",
+    "lines": "Staten Island Ferry",
+    "capacity": 150
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.00083,
+      40.71308
+     ],
+     [
+      -74.00088,
+      40.7116
+     ],
+     [
+      -74.00049,
+      40.711
+     ],
+     [
+      -74.00166,
+      40.70949
+     ],
+     [
+      -74.00011,
+      40.70824
+     ],
+     [
+      -74.00001,
+      40.70788
+     ],
+     [
+      -74.00015,
+      40.70759
+     ],
+     [
+      -74.00296,
+      40.70614
+     ],
+     [
+      -74.00935,
+      40.70212
+     ],
+     [
+      -74.00988,
+      40.70191
+     ],
+     [
+      -74.01295,
+      40.70124
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T4",
+    "name": "Pier 11 \u00b7 NYC Ferry",
+    "note": "Small boats to Brooklyn, Queens and the Rockaways",
+    "length_m": 1439,
+    "vertices": 9,
+    "exit": [
+     -74.0061,
+     40.7032
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "ferry",
+    "lines": "NYC Ferry ER \u00b7 SB \u00b7 RW \u00b7 AS",
+    "capacity": 25
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.00083,
+      40.71308
+     ],
+     [
+      -74.00088,
+      40.7116
+     ],
+     [
+      -74.00049,
+      40.711
+     ],
+     [
+      -74.00166,
+      40.70949
+     ],
+     [
+      -74.00011,
+      40.70824
+     ],
+     [
+      -74.00007,
+      40.70768
+     ],
+     [
+      -74.00296,
+      40.70614
+     ],
+     [
+      -74.00673,
+      40.70373
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T5",
+    "name": "Canal St \u00b7 subway",
+    "note": "Seven lines at the zone's northern edge",
+    "length_m": 882,
+    "vertices": 6,
+    "exit": [
+     -74.0018,
+     40.7195
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "subway",
+    "lines": "6 J N Q R W Z",
+    "capacity": 400
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.0026,
+      40.71429
+     ],
+     [
+      -74.00206,
+      40.71524
+     ],
+     [
+      -73.99995,
+      40.71802
+     ],
+     [
+      -74.00181,
+      40.71934
+     ],
+     [
+      -74.00181,
+      40.71949
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T6",
+    "name": "Delancey\u2013Essex \u00b7 subway",
+    "note": "The Lower East Side's hub; J/M/Z cross the Williamsburg Bridge",
+    "length_m": 1630,
+    "vertices": 8,
+    "exit": [
+     -73.9881,
+     40.7186
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "subway",
+    "lines": "F J M Z",
+    "capacity": 300
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.00083,
+      40.71308
+     ],
+     [
+      -73.99898,
+      40.71339
+     ],
+     [
+      -73.99764,
+      40.71401
+     ],
+     [
+      -73.99538,
+      40.71738
+     ],
+     [
+      -73.99399,
+      40.7203
+     ],
+     [
+      -73.99375,
+      40.72032
+     ],
+     [
+      -73.98806,
+      40.7186
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "route_id": "T7",
+    "name": "Penn Station \u00b7 rail",
+    "note": "Out of the city by rail, once you are already out of the zone",
+    "length_m": 4751,
+    "vertices": 14,
+    "exit": [
+     -73.9936,
+     40.7505
+    ],
+    "safe": true,
+    "transit": true,
+    "mode": "rail",
+    "lines": "LIRR \u00b7 NJ Transit \u00b7 Amtrak",
+    "capacity": 600
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -74.00097,
+      40.71333
+     ],
+     [
+      -74.0026,
+      40.71429
+     ],
+     [
+      -74.00206,
+      40.71524
+     ],
+     [
+      -73.99995,
+      40.71802
+     ],
+     [
+      -74.00535,
+      40.72188
+     ],
+     [
+      -74.00536,
+      40.72223
+     ],
+     [
+      -74.00296,
+      40.72814
+     ],
+     [
+      -74.00211,
+      40.72987
+     ],
+     [
+      -74.00137,
+      40.73113
+     ],
+     [
+      -73.99952,
+      40.73366
+     ],
+     [
+      -73.99975,
+      40.73433
+     ],
+     [
+      -74.00111,
+      40.7366
+     ],
+     [
+      -73.99201,
+      40.7491
+     ],
+     [
+      -73.99334,
+      40.74966
+     ]
+    ]
+   }
   }
  ]
 }

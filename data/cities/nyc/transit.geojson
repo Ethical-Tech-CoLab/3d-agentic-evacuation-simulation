@@ -1,0 +1,1193 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "East Broadway",
+    "operator": "MTA New York City Transit",
+    "lines": "F",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99017,
+     40.71372
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Chambers St",
+    "operator": "MTA New York City Transit",
+    "lines": "2 3 A C E R W",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00955,
+     40.7126
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "23 St",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98934,
+     40.7413
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "28 St",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98869,
+     40.74549
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Fulton St",
+    "operator": "MTA New York City Transit",
+    "lines": "2 3 4 5 A C J Z",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00784,
+     40.71009
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Canal St",
+    "operator": "MTA New York City Transit",
+    "lines": "6 J N Q R W Z",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00058,
+     40.7187
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Bleecker St",
+    "operator": "MTA New York City Transit",
+    "lines": "6 B D F M",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99543,
+     40.72561
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "23 St",
+    "operator": "MTA New York City Transit",
+    "lines": "F M",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99282,
+     40.74288
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Wall St",
+    "operator": "MTA New York City Transit",
+    "lines": "4 5",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01186,
+     40.70756
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Franklin St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00689,
+     40.71932
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "23 St",
+    "operator": "MTA New York City Transit",
+    "lines": "C E",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99804,
+     40.74591
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "28 St",
+    "operator": "MTA New York City Transit",
+    "lines": "6",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98426,
+     40.74307
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "14 St",
+    "operator": "MTA New York City Transit",
+    "lines": "1 2 3 F L M",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99773,
+     40.7378
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Delancey St-Essex St",
+    "operator": "MTA New York City Transit",
+    "lines": "F J M Z",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98778,
+     40.71846
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Wall St",
+    "operator": "MTA New York City Transit",
+    "lines": "2 3",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.0091,
+     40.70682
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "34 St-Penn Station",
+    "operator": "MTA New York City Transit",
+    "lines": "1 2 3",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99106,
+     40.75037
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "14 St",
+    "operator": "MTA New York City Transit",
+    "lines": "A C E L",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00213,
+     40.74034
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Spring St",
+    "operator": "MTA New York City Transit",
+    "lines": "6",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99714,
+     40.7223
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Prince St",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9977,
+     40.72433
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Canal St",
+    "operator": "MTA New York City Transit",
+    "lines": "A C E",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00523,
+     40.72082
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "14 St-Union Sq",
+    "operator": "MTA New York City Transit",
+    "lines": "4 5 6 L N Q R W",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99042,
+     40.73507
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Canal St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00628,
+     40.72285
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Chambers St",
+    "operator": "MTA New York City Transit",
+    "lines": "4 5 6 J Z",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00377,
+     40.71315
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "3 Av",
+    "operator": "MTA New York City Transit",
+    "lines": "L",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98612,
+     40.73285
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Rector St",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01334,
+     40.70722
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "18 St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99787,
+     40.74104
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "W 4 St-Wash Sq",
+    "operator": "MTA New York City Transit",
+    "lines": "A B C D E F M",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.0005,
+     40.73234
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "33 St",
+    "operator": "MTA New York City Transit",
+    "lines": "6",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98208,
+     40.74608
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "23 St-Baruch College",
+    "operator": "MTA New York City Transit",
+    "lines": "6",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9866,
+     40.73986
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "28 St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99336,
+     40.74721
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "City Hall",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00698,
+     40.71328
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Rector St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01378,
+     40.70751
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Houston St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00537,
+     40.72825
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "8 St-NYU",
+    "operator": "MTA New York City Transit",
+    "lines": "R W",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99263,
+     40.73033
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Grand Central-42 St",
+    "operator": "MTA New York City Transit",
+    "lines": "4 5 6 7",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97644,
+     40.7516
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Whitehall St-South Ferry",
+    "operator": "MTA New York City Transit",
+    "lines": "1 R W",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01333,
+     40.70258
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "WTC Cortlandt",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01219,
+     40.71184
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "1 Av",
+    "operator": "MTA New York City Transit",
+    "lines": "L",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98163,
+     40.73095
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "23 St",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99566,
+     40.74408
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Grand St",
+    "operator": "MTA New York City Transit",
+    "lines": "B D",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99375,
+     40.71827
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Christopher St-Stonewall",
+    "operator": "MTA New York City Transit",
+    "lines": "1",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00291,
+     40.73342
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Bowling Green",
+    "operator": "MTA New York City Transit",
+    "lines": "4 5",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01407,
+     40.70482
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "York St",
+    "operator": "MTA New York City Transit",
+    "lines": "F",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98675,
+     40.7014
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Broad St",
+    "operator": "MTA New York City Transit",
+    "lines": "J Z",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01106,
+     40.70648
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "34 St-Herald Sq",
+    "operator": "MTA New York City Transit",
+    "lines": "B D F M N Q R W",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98789,
+     40.74964
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Spring St",
+    "operator": "MTA New York City Transit",
+    "lines": "C E",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00374,
+     40.72623
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Chambers St",
+    "operator": "MTA New York City Transit",
+    "lines": "1 2 3",
+    "ada": true,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00927,
+     40.71548
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Bowery",
+    "operator": "MTA New York City Transit",
+    "lines": "J Z",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99392,
+     40.72028
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "Astor Pl",
+    "operator": "MTA New York City Transit",
+    "lines": "6",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99107,
+     40.73005
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "subway",
+    "name": "2 Av",
+    "operator": "MTA New York City Transit",
+    "lines": "F",
+    "ada": false,
+    "source": "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98994,
+     40.7234
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "South Williamsburg",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97022,
+     40.70874
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "East 34th Street",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97073,
+     40.74391
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Dumbo/Fulton Ferry",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99567,
+     40.70365
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Wall St/Pier 11",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00614,
+     40.70316
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Stuyvesant Cove",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97292,
+     40.73198
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Corlears Hook",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97924,
+     40.71016
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Brooklyn Navy Yard",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.97358,
+     40.70179
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Battery Park City/Vesey St.",
+    "operator": "NYC Ferry",
+    "lines": "NYC Ferry",
+    "ada": true,
+    "source": "NYC Ferry GTFS static feed (landings)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01778,
+     40.71503
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "14th Street",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99684,
+     40.73735
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "23rd Street",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.99278,
+     40.7429
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "33rd Street",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.98827,
+     40.74912
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "9th Street",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9991,
+     40.73424
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "Christopher Street",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.00707,
+     40.73295
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "World Trade Center",
+    "operator": "PATH (Port Authority)",
+    "lines": "PATH",
+    "ada": false,
+    "source": "PATH GTFS static feed, Port Authority via Trillium (stations)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.01193,
+     40.71271
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "ferry",
+    "name": "Whitehall Terminal \u00b7 Staten Island Ferry",
+    "lines": "Staten Island Ferry",
+    "operator": "NYC DOT",
+    "ada": true,
+    "source": "NYC DOT Staten Island Ferry, Whitehall Terminal (placed by hand)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -74.013,
+     40.7012
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "mode": "rail",
+    "name": "Penn Station \u00b7 LIRR / NJ Transit / Amtrak",
+    "lines": "LIRR, NJ Transit, Amtrak",
+    "operator": "MTA / NJT / Amtrak",
+    "ada": true,
+    "source": "Penn Station, Amtrak/LIRR (placed by hand)"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9936,
+     40.7505
+    ]
+   }
+  }
+ ]
+}

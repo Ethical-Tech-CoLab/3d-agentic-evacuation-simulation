@@ -15,7 +15,7 @@ actually would.
 
 Usage:  python3 tools/fetch_city.py <city-id>
 """
-import json, math, sys, time, heapq, os, urllib.request, urllib.parse, urllib.error
+import json, math, sys, time, heapq, os, io, csv, zipfile, urllib.request, urllib.parse, urllib.error
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -306,6 +306,169 @@ EXITS = {
     ],
 }
 
+# ── Transit ──────────────────────────────────────────────────────────────────
+#
+# Stations and landings are real: they come from the operators' own published
+# feeds, not from a sketch. Which of them the model treats as a way out, and how
+# many people a minute each can board, are modelled — a station is a door with
+# a throughput, and the throughput is a judgement stated in METHOD.md.
+#
+# Two things make a transit exit unlike a bridge. It can be *suspended* by the
+# weather (a gale stops the ferries; a flooded tunnel stops the trains), and in
+# a forecast hazard it is *shut down on a clock* before the hazard arrives — the
+# MTA stopped the subway at 19:00 the evening before Sandy, seven and a half
+# hours after the evacuation order. Both live in the engine, not here.
+TRANSIT_SOURCES = {
+    "nyc": [
+        ("subway", "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)",
+         "https://data.ny.gov/api/views/39hk-dx4f/rows.csv?accessType=DOWNLOAD"),
+        ("ferry", "NYC Ferry GTFS static feed (landings)",
+         "http://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx"),
+        ("rail", "PATH GTFS static feed, Port Authority via Trillium (stations)",
+         "https://data.trilliumtransit.com/gtfs/path-nj-us/path-nj-us.zip"),
+    ],
+}
+
+# Stations the feeds above do not carry, placed by hand from the operator's
+# published terminal location. Each says where it came from.
+TRANSIT_FIXED = {
+    "nyc": [
+        {"mode": "ferry", "name": "Whitehall Terminal · Staten Island Ferry", "lines": "Staten Island Ferry",
+         "operator": "NYC DOT", "ada": True, "lon": -74.0130, "lat": 40.7012,
+         "source": "NYC DOT Staten Island Ferry, Whitehall Terminal (placed by hand)"},
+        {"mode": "rail", "name": "Penn Station · LIRR / NJ Transit / Amtrak", "lines": "LIRR, NJ Transit, Amtrak",
+         "operator": "MTA / NJT / Amtrak", "ada": True, "lon": -73.9936, "lat": 40.7505,
+         "source": "Penn Station, Amtrak/LIRR (placed by hand)"},
+    ],
+}
+
+# The transit exits the model routes to. (label, lon, lat, mode, lines,
+# boarding capacity in people/minute, note). Capacity is a modelled throughput
+# for the whole station or terminal in the outbound direction — not a measured
+# figure — and is stated as such wherever it is shown.
+TRANSIT_EXITS = {
+    "nyc": [
+        ("Fulton St · subway hub", -74.0095, 40.7104, "subway", "2 3 4 5 A C J Z", 500,
+         "Eight lines under one roof; the zone's deepest-reaching station"),
+        ("World Trade Center · PATH", -74.0119, 40.7127, "rail", "PATH to Hoboken and Newark", 300,
+         "Under the Hudson to New Jersey"),
+        ("Whitehall · Staten Island Ferry", -74.0130, 40.7012, "ferry", "Staten Island Ferry", 150,
+         "One 4,400-passenger boat every half hour; the first thing a gale stops"),
+        ("Pier 11 · NYC Ferry", -74.0061, 40.7032, "ferry", "NYC Ferry ER · SB · RW · AS", 25,
+         "Small boats to Brooklyn, Queens and the Rockaways"),
+        ("Canal St · subway", -74.0018, 40.7195, "subway", "6 J N Q R W Z", 400,
+         "Seven lines at the zone's northern edge"),
+        ("Delancey–Essex · subway", -73.9881, 40.7186, "subway", "F J M Z", 300,
+         "The Lower East Side's hub; J/M/Z cross the Williamsburg Bridge"),
+        ("Penn Station · rail", -73.9936, 40.7505, "rail", "LIRR · NJ Transit · Amtrak", 600,
+         "Out of the city by rail, once you are already out of the zone"),
+    ],
+}
+
+
+def _in_bbox(lon, lat, bbox):
+    s, w, n, e = bbox
+    return s <= lat <= n and w <= lon <= e
+
+
+def _get(url, timeout=120):
+    req = urllib.request.Request(url, headers={"User-Agent": "ETC 3d-agentic-evacuation-simulation city pack builder"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def _gtfs_stops(raw):
+    """stops.txt rows from a GTFS zip, as dicts."""
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        return list(csv.DictReader(io.TextIOWrapper(z.open("stops.txt"), encoding="utf-8-sig")))
+
+
+def fetch_transit_feeds(city_id, bbox):
+    """Every station and landing inside the bbox, from the operators' feeds."""
+    feats = []
+    for mode, label, url in TRANSIT_SOURCES.get(city_id, []):
+        print(f"  transit · {label}…", flush=True)
+        raw = _get(url)
+        if mode == "subway" and "data.ny.gov" in url:
+            # One feature per station complex, so Fulton St is one place with
+            # eight lines rather than four platforms with two each.
+            by_complex = {}
+            for r in csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))):
+                lon, lat = float(r["GTFS Longitude"]), float(r["GTFS Latitude"])
+                if not _in_bbox(lon, lat, bbox):
+                    continue
+                c = by_complex.setdefault(r["Complex ID"], {
+                    "mode": "subway", "name": r["Stop Name"], "operator": "MTA New York City Transit",
+                    "lines": set(), "ada": False, "lon": [], "lat": [], "source": label})
+                c["lines"].update(r["Daytime Routes"].split())
+                c["ada"] = c["ada"] or r["ADA"] in ("1", "2")
+                c["lon"].append(lon); c["lat"].append(lat)
+            for c in by_complex.values():
+                c["lines"] = " ".join(sorted(c["lines"]))
+                c["lon"] = round(sum(c["lon"]) / len(c["lon"]), 5)
+                c["lat"] = round(sum(c["lat"]) / len(c["lat"]), 5)
+                feats.append(c)
+        else:
+            for r in _gtfs_stops(raw):
+                # Parent stations only where the feed has them; every stop otherwise.
+                if r.get("location_type") not in (None, "", "0", "1"):
+                    continue
+                if r.get("parent_station"):
+                    continue
+                lon, lat = float(r["stop_lon"]), float(r["stop_lat"])
+                if not _in_bbox(lon, lat, bbox):
+                    continue
+                feats.append({
+                    "mode": mode, "name": r["stop_name"],
+                    "operator": "NYC Ferry" if mode == "ferry" else "PATH (Port Authority)",
+                    "lines": "NYC Ferry" if mode == "ferry" else "PATH",
+                    "ada": r.get("wheelchair_boarding", "") == "1",
+                    "lon": round(lon, 5), "lat": round(lat, 5), "source": label,
+                })
+    feats.extend(TRANSIT_FIXED.get(city_id, []))
+    return feats
+
+
+def fetch_transit_osm(bbox):
+    """Fallback for a city without published feeds: whatever OSM has."""
+    s, w, n, e = bbox
+    q = f"""[out:json][timeout:180];
+(node["railway"="station"]({s},{w},{n},{e});
+ node["amenity"="ferry_terminal"]({s},{w},{n},{e});
+ way["amenity"="ferry_terminal"]({s},{w},{n},{e}););
+out center tags;"""
+    feats = []
+    for el in overpass(q).get("elements", []):
+        t = el.get("tags", {})
+        lon = el.get("lon") or el.get("center", {}).get("lon")
+        lat = el.get("lat") or el.get("center", {}).get("lat")
+        if lon is None or not t.get("name"):
+            continue
+        if t.get("amenity") == "ferry_terminal":
+            mode = "ferry"
+        elif t.get("station") in ("subway", "light_rail", "monorail"):
+            mode = "subway"
+        else:
+            mode = "rail"
+        feats.append({"mode": mode, "name": t["name"], "operator": t.get("operator") or t.get("network") or "",
+                      "lines": t.get("network", ""), "ada": t.get("wheelchair") == "yes",
+                      "lon": round(lon, 5), "lat": round(lat, 5), "source": "OpenStreetMap (ODbL)"})
+    return feats
+
+
+def transit_features(city_id, bbox):
+    try:
+        feats = fetch_transit_feeds(city_id, bbox) if city_id in TRANSIT_SOURCES else fetch_transit_osm(bbox)
+    except Exception as e:                      # noqa: BLE001
+        print(f"  ✗ transit inventory unavailable: {e}", flush=True)
+        return []
+    return [{
+        "type": "Feature",
+        "properties": {k: v for k, v in f.items() if k not in ("lon", "lat")},
+        "geometry": {"type": "Point", "coordinates": [f["lon"], f["lat"]]},
+    } for f in feats]
+
+
 # Origin zones. Mariupol's five are the published ETC cohorts and are read from
 # the existing pack; the other cities get a modelled zone set whose totals are
 # stated as modelled everywhere they are shown.
@@ -445,8 +608,16 @@ def build_city(city_id):
         sum(z["geometry"]["coordinates"][1] * z["properties"]["population"] for z in zones) / tot,
     )
     src = nearest_node(adj, origin)
+    # Road exits first, then transit exits. A transit exit is routed exactly
+    # like a bridge — a real road path to the station door — and differs only
+    # in what the engine does with it once someone arrives.
+    exits = [(f"R{i+1}", label, lon, lat, note, safe, {})
+             for i, (label, lon, lat, note, safe) in enumerate(EXITS[city_id])]
+    exits += [(f"T{i+1}", label, lon, lat, note, True,
+               {"transit": True, "mode": mode, "lines": lines, "capacity": cap})
+              for i, (label, lon, lat, mode, lines, cap, note) in enumerate(TRANSIT_EXITS.get(city_id, []))]
     routes = []
-    for i, (label, lon, lat, note, safe) in enumerate(EXITS[city_id]):
+    for rid, label, lon, lat, note, safe, extra in exits:
         dst = nearest_node(adj, (lon, lat))
         path, metres = dijkstra(adj, src, dst)
         if not path:
@@ -456,14 +627,20 @@ def build_city(city_id):
         routes.append({
             "type": "Feature",
             "properties": {
-                "route_id": f"R{i+1}", "name": label, "note": note,
+                "route_id": rid, "name": label, "note": note,
                 "length_m": round(metres), "vertices": len(simple),
-                "exit": [lon, lat], "safe": safe,
+                "exit": [lon, lat], "safe": safe, **extra,
             },
             "geometry": {"type": "LineString", "coordinates": simple},
         })
         print(f"  ✓ {label}: {metres/1000:.1f} km, {len(path)}→{len(simple)} pts"
-              f"{'' if safe else '   [NOT SAFETY — counted separately]'}", flush=True)
+              f"{'' if safe else '   [NOT SAFETY — counted separately]'}"
+              f"{'   [' + extra['mode'] + ', ' + str(extra['capacity']) + '/min]' if extra else ''}", flush=True)
+
+    transit = transit_features(city_id, cfg["bbox"])
+    json.dump({"type": "FeatureCollection", "features": transit},
+              open(os.path.join(out_dir, "transit.geojson"), "w"), indent=1)
+    print(f"  transit: {len(transit)} stations and landings", flush=True)
 
     json.dump({"type": "FeatureCollection", "features": routes},
               open(os.path.join(out_dir, "routes.geojson"), "w"), indent=1)
@@ -502,9 +679,41 @@ def build_city(city_id):
                                "entry_index": best_i, "length_m": round(metres)},
                 "geometry": {"type": "LineString", "coordinates": simplify(path)},
             })
+    # Transfer legs: for every transit exit × every other route, the road path
+    # from the station door to the nearest point on that route. This is what a
+    # household walks when it reaches a shut station — without it the engine
+    # would have to draw a straight line from Whitehall to the Brooklyn Bridge,
+    # across the East River.
+    transfers = 0
+    for src_rt in routes:
+        if not src_rt["properties"].get("transit"):
+            continue
+        door = tuple(src_rt["geometry"]["coordinates"][-1])
+        dsrc = nearest_node(adj, door)
+        for rt in routes:
+            if rt is src_rt:
+                continue
+            coords = rt["geometry"]["coordinates"]
+            best_i, best_d = 0, float("inf")
+            for i, c in enumerate(coords):
+                d = haversine(tuple(c), door)
+                if d < best_d:
+                    best_d, best_i = d, i
+            path, metres = dijkstra(adj, dsrc, nearest_node(adj, tuple(coords[best_i])))
+            if not path:
+                path, metres, best_i = [list(dsrc), list(coords[0])], haversine(dsrc, tuple(coords[0])), 0
+            approaches.append({
+                "type": "Feature",
+                "properties": {"from_route": src_rt["properties"]["route_id"],
+                               "route_id": rt["properties"]["route_id"],
+                               "entry_index": best_i, "length_m": round(metres)},
+                "geometry": {"type": "LineString", "coordinates": simplify(path)},
+            })
+            transfers += 1
+
     json.dump({"type": "FeatureCollection", "features": approaches},
               open(os.path.join(out_dir, "approaches.geojson"), "w"), indent=1)
-    print(f"  approaches: {len(approaches)} (zone x route legs)", flush=True)
+    print(f"  approaches: {len(approaches) - transfers} (zone x route legs) + {transfers} transfer legs", flush=True)
 
     # Where agents actually start: real building centroids inside each zone's
     # radius. A jittered circle puts people in the river; a building does not.
@@ -538,8 +747,15 @@ def build_city(city_id):
              "real": True}),
         "hazard": cfg["hazard"], "hazardLabel": cfg["hazard_label"],
         "note": cfg["note"], "bbox": cfg["bbox"], "centre": cfg["centre"],
+        "transit": {
+            "sources": sorted({f["properties"]["source"] for f in transit}),
+            "note": "Station and landing locations are the operators' published figures. "
+                    "Which stations are exits, and their boarding capacity, are modelled.",
+        } if transit else None,
         "counts": {"buildings": len(buildings), "roadWays": len(ways),
                    "routes": len(routes), "zones": len(zones),
+                   "transitRoutes": sum(1 for r in routes if r["properties"].get("transit")),
+                   "transitStations": len(transit),
                    "buildingsWithRealHeight": with_height,
                    "exposed": sum(z["properties"]["population"] for z in zones)},
     }, open(os.path.join(out_dir, "meta.json"), "w"), indent=1)

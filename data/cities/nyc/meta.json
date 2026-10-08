@@ -22,11 +22,23 @@
   -73.9905,
   40.724
  ],
+ "transit": {
+  "sources": [
+   "MTA Subway Stations, NY Open Data 39hk-dx4f (lines, ADA)",
+   "NYC DOT Staten Island Ferry, Whitehall Terminal (placed by hand)",
+   "NYC Ferry GTFS static feed (landings)",
+   "PATH GTFS static feed, Port Authority via Trillium (stations)",
+   "Penn Station, Amtrak/LIRR (placed by hand)"
+  ],
+  "note": "Station and landing locations are the operators' published figures. Which stations are exits, and their boarding capacity, are modelled."
+ },
  "counts": {
   "buildings": 17689,
   "roadWays": 4138,
-  "routes": 5,
+  "routes": 12,
   "zones": 5,
+  "transitRoutes": 7,
+  "transitStations": 66,
   "buildingsWithRealHeight": 17010,
   "exposed": 92000
  }

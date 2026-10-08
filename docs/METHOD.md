@@ -32,6 +32,10 @@ This note exists so that nothing in the picture has to be taken on trust.
 | Five emergency-zone cohorts — population, vulnerable, children, elderly, disabled, damage %, dark %, destroyed, radius | ETC `mariupol-evacuation-model`, "Data-Driven Evacuation Analysis" | late Mar–Apr 2022 |
 | Scenario facts — severity 0.54 (Phase 3/5), pre-siege population 343,598, ~16 % damaged, 22 % lights, 227 km to Zaporizhzhia | same | 16 Mar 2022 |
 | Basemap geometry and labels | CARTO dark-matter, built from OSM | current |
+| Lower Manhattan subway complexes — position, lines, ADA | MTA Subway Stations, NY Open Data `39hk-dx4f` | current |
+| Lower Manhattan ferry landings | NYC Ferry GTFS static feed, `stops.txt` | current |
+| PATH stations | Port Authority GTFS static feed (via Trillium), `stops.txt` | current |
+| Whitehall Terminal, Penn Station | operators' published terminal locations, placed by hand | current |
 
 The five zones sum to the published **37,663 exposed** and **16,102 vulnerable**.
 Zone 5's child/elderly/disabled split is estimated to its exact published
@@ -175,6 +179,62 @@ Two are worth calling out because they are the least obvious:
   Evening is the best hour to be told to leave; night is the worst, because the
   warning takes twice as long to land.
 
+## 2e-bis. Transit exits
+
+Lower Manhattan carries seven transit exits alongside its five road exits. Each
+is a real station or landing, and the route to it is a Dijkstra path over the
+road graph like every other route. What is modelled is the **door**: how many
+people a minute it boards, and when it is shut.
+
+| Exit | Mode | Lines | Boarding, people/min (modelled) |
+|---|---|---|---|
+| Fulton St | subway | 2 3 4 5 A C J Z | 500 |
+| World Trade Center | rail | PATH | 300 |
+| Whitehall | ferry | Staten Island Ferry | 150 |
+| Pier 11 | ferry | NYC Ferry | 25 |
+| Canal St | subway | 6 J N Q R W Z | 400 |
+| Delancey–Essex | subway | F J M Z | 300 |
+| Penn Station | rail | LIRR, NJ Transit, Amtrak | 600 |
+
+The boarding figures are order-of-magnitude judgements, not counts: a
+4,400-passenger ferry every half hour is about 150 a minute; a multi-line hub
+with several outbound trains an hour each carrying over a thousand is a few
+hundred a minute once stairs and turnstiles are allowed for; NYC Ferry boats
+carry 150 on a 20-minute headway. None of them has been checked against a
+measured peak, and the backlog's call for a sensitivity sweep applies to them
+as much as to anything else. The road-capacity slider does not touch them.
+
+A transit exit can be shut two ways, and `live` on the route is false in both:
+
+- **By the weather.** Every weather state and time of day carries a `transit`
+  multiplier per mode (`ferry`, `subway`, `rail`); the two compose. Below 0.05
+  the mode is *suspended*. High wind sets `ferry` to 0 — the boats are tied up
+  before anyone on foot is much slowed. Heavy rain sets `subway` to 0.5, for
+  flooded tunnels. The severe-storm state sets `ferry` and `rail` to 0 and
+  leaves the subway at 0.8, because underground is the one place a tornado
+  does not reach. Night cuts every mode to overnight headways.
+- **By the clock.** `transitShutdown`, in hours after T0, is when the operator
+  stops service ahead of a forecast hazard. The default of 8 is the Sandy
+  precedent — the MTA suspended the subway at 19:00, seven and a half hours
+  after the 11:30 evacuation order — rounded. The slider's top position means
+  "weather only".
+
+A badly informed agent (information × visibility ≤ 0.4) cannot know that a
+station is shut and may still walk to it; a well informed one stops choosing
+it, and anyone still in the district reconsiders every five minutes as usual.
+A household that reaches a shut door takes the best route still running from
+where it stands, along a **transfer leg** — a road path from that station to
+the nearest point on each other route, precomputed by `tools/fetch_city.py`
+and stored in `approaches.geojson` with `from_route` in place of `zone_id`.
+Without those legs the engine would have to draw a straight line from
+Whitehall to the Brooklyn Bridge, across the East River. Those households are
+counted as `turnedAway` and shown on the console as *found the station shut*.
+
+The full inventory of 66 stations and landings is in `transit.geojson` and is
+drawn on the map, so the seven the model uses can be seen against the
+fifty-nine it does not. Only Lower Manhattan has a transit layer so far; the
+tool falls back to OpenStreetMap for a city without published feeds.
+
 ## 2f. Editing the mix
 
 Every share on every axis is editable at runtime, rebalances its axis to 100%,
@@ -241,6 +301,9 @@ agents.
   filtration-bound one, which is an exit from the city and not an exit to
   safety. For the other three they are the obvious real crossings and arterials,
   not the official designations of NYC OEM or Miami-Dade.
+- **Which stations are transit exits, and what they board.** The 66 stations
+  and landings are the operators' own; the seven chosen as exits, and the
+  people-per-minute each boards, are judgements in the `TRANSIT_EXITS` table.
 - **Where routes start.** All routes for a city are measured from the
   population-weighted centroid of its origin zones, so their lengths are
   comparable. A route measured from whichever zone happens to sit next to an

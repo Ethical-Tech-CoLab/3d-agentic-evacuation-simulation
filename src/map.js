@@ -174,9 +174,13 @@ const GROUND = {
   },
 };
 
+/** One colour per transit mode, for stations and for the console badges. */
+export const MODE_COLOUR = { subway: [59, 130, 246], rail: [168, 85, 247], ferry: [20, 184, 166] };
+export const MODE_LABEL = { subway: 'Subway', rail: 'Rail', ferry: 'Ferry' };
+
 export function baseLayers(deck, ctx) {
   const { ColumnLayer, ScatterplotLayer, PathLayer, TextLayer } = deck;
-  const { city, zones, routes, damage, buildings, roads, show, height } = ctx;
+  const { city, zones, routes, damage, buildings, roads, show, height, transit = [] } = ctx;
   const g = GROUND[ctx.ground] || GROUND.dark;
   const layers = [];
 
@@ -236,25 +240,47 @@ export function baseLayers(deck, ctx) {
     // Thin and semi-transparent on purpose: the route is a guide, and drawn
     // any heavier it is wider than the crowd walking it, so a column of
     // households reads as one solid tube instead of as people.
-    getColor: r => (r.open ? [...r.colour, 150] : [110, 118, 130, 90]),
+    getColor: r => (r.live ? [...r.colour, 150] : [110, 118, 130, 90]),
     getWidth: 10,
     widthMinPixels: 1.5,
     widthMaxPixels: 5,
     capRounded: true,
     jointRounded: true,
-    updateTriggers: { getColor: routes.map(r => r.open).join() },
+    updateTriggers: { getColor: routes.map(r => r.live).join() },
   }));
+
+  // Every station and landing the city has, whether or not the model routes to
+  // it. Drawn small and in the mode's own colour so the seven exits the model
+  // uses can be seen against the sixty it does not.
+  if (show.transit && transit.length) {
+    layers.push(new ScatterplotLayer({
+      id: 'transit',
+      data: transit,
+      getPosition: f => f.geometry.coordinates,
+      getRadius: 38,
+      radiusMinPixels: 2.5,
+      radiusMaxPixels: 6,
+      getFillColor: f => [...(MODE_COLOUR[f.properties.mode] || MODE_COLOUR.rail), 200],
+      getLineColor: ctx.ground === 'light' ? [255, 255, 255, 220] : [10, 14, 20, 200],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: true,
+      updateTriggers: { getLineColor: ctx.ground },
+    }));
+  }
 
   layers.push(new ScatterplotLayer({
     id: 'route-exits',
     data: routes,
     getPosition: r => r.coords[r.coords.length - 1],
-    getRadius: 130,
+    getRadius: r => (r.transit ? 90 : 130),
     radiusMinPixels: 4,
-    getFillColor: r => [...r.colour, 60],
-    getLineColor: r => [...r.colour, 235],
+    // A shut station is drawn hollow and grey: still there, not a way out.
+    getFillColor: r => (r.live ? [...r.colour, 60] : [110, 118, 130, 25]),
+    getLineColor: r => (r.live ? [...r.colour, 235] : [110, 118, 130, 160]),
     lineWidthMinPixels: 2,
     stroked: true,
+    updateTriggers: { getFillColor: routes.map(r => r.live).join(), getLineColor: routes.map(r => r.live).join() },
   }));
 
   layers.push(new ScatterplotLayer({
@@ -271,7 +297,8 @@ export function baseLayers(deck, ctx) {
   layers.push(new TextLayer({
     id: 'labels',
     data: [
-      ...routes.map(r => ({ text: r.name, at: r.coords[r.coords.length - 1], colour: r.colour })),
+      ...routes.map(r => ({ text: r.live ? r.name : `${r.name} · ${r.why === 'weather' ? 'suspended' : r.why === 'shutdown' ? 'shut down' : 'closed'}`,
+                            at: r.coords[r.coords.length - 1], colour: r.live ? r.colour : [150, 156, 166] })),
       ...zones.map(z => ({ text: z.properties.name, at: z.geometry.coordinates, colour: [125, 211, 252] })),
     ],
     getPosition: d => d.at,
@@ -279,7 +306,7 @@ export function baseLayers(deck, ctx) {
     getSize: 11,
     getColor: d => (ctx.ground === 'light' ? d.colour.map(c => c * 0.55) : d.colour),
     getPixelOffset: [0, -15],
-    updateTriggers: { getColor: ctx.ground, getBackgroundColor: ctx.ground },
+    updateTriggers: { getColor: ctx.ground, getBackgroundColor: ctx.ground, getText: routes.map(r => r.live).join() },
     fontFamily: 'ui-monospace, monospace',
     background: true,
     getBackgroundColor: g.labelBg,
