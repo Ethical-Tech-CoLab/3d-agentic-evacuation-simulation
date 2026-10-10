@@ -422,10 +422,13 @@ well. The question is whether a learned model adds anything over the formula.
 
 ### 10.3 Constraints that decide *how*, not *whether*
 
-- **Scale.** At 20,000 households and a 300 s re-route cadence, a 10-hour run
-  needs about **2.4 million** route decisions. At the default 120× speed, that
-  is **about 8,000 calls per real second**. Live per-agent calls are not
-  feasible. This holds even at the most optimistic claimed latency.
+- **Scale.** Measured at 20,000 households, a run needs about 10 decisions
+  per household, which is roughly 200,000 in total, mostly 5-minute
+  reconsiderations. At the default 120× speed, Lower Manhattan's run averages
+  **about 1,400 decisions per real second**. Live per-agent calls to a remote
+  model are not feasible, even at the most optimistic claimed latency.
+  ([LOCAL_DECISION_MODEL.md §0](LOCAL_DECISION_MODEL.md#0-how-many-decisions-does-a-run-need-measured)
+  has the measurements and covers in-browser and self-hosted GPU options.)
 - **Reproducibility.** A run is defined by its URL and seed, and `npm test`
   asserts invariants such as clearance not depending on sample size. A live,
   non-deterministic remote model breaks both.
@@ -440,7 +443,7 @@ well. The question is whether a learned model adds anything over the formula.
 
 1. Define a small set of **archetypes**: cohort × unit × behaviour × `info`
    band × `risk` band × hazard band × time of day × "zone already moving"
-   band. This comes to a few thousand cells.
+   band. This comes to several thousand cells (about 7,500; see LOCAL_DECISION_MODEL.md §2.3).
 2. **Offline**, in a build step like `tools/fetch_city.py`, query the decision
    model once per cell for each typed question: *will this household leave
    now?*, *will it trust this warning?*, *will it go back?*, *at a closed road,

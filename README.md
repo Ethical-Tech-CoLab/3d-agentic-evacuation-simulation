@@ -366,6 +366,7 @@ tools/fetch_city.py builds a city pack from OSM: buildings, roads, routes
 data/cities/<id>/   one pack per city
 docs/METHOD.md      what is real, what is modelled, what is illustrative
 docs/AGENT_DECISIONS.md  every agent decision rule, route closures, what each dot means
+docs/LOCAL_DECISION_MODEL.md  running a decision model in-browser or on our own GPU
 ```
 
 ## Attribution
