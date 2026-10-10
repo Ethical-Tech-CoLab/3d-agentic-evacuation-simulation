@@ -174,6 +174,9 @@ jittered inside its zone.
 vocabulary the CoLab's [Evacuation Behavior Simulator](https://github.com/Ethical-Tech-CoLab/Evac-Sim-Melanie)
 uses, deliberately. Milling burns down faster the more of the district is
 visibly already moving, so the whole population can stall and then go at once.
+Every transition rule, the full route-choice and closure logic, and what each
+marker on the map represents are written out in
+[docs/AGENT_DECISIONS.md](docs/AGENT_DECISIONS.md).
 
 ## Controlling the population
 
@@ -362,6 +365,8 @@ src/app.js          wiring, clock, statistics
 tools/fetch_city.py builds a city pack from OSM: buildings, roads, routes
 data/cities/<id>/   one pack per city
 docs/METHOD.md      what is real, what is modelled, what is illustrative
+docs/AGENT_DECISIONS.md  every agent decision rule, route closures, what each dot means
+docs/LOCAL_DECISION_MODEL.md  running a decision model in-browser or on our own GPU
 ```
 
 ## Attribution
