@@ -60,6 +60,10 @@ Switch cities in the console, or with `?city=mariupol|nyc|vegas|miami`.
 
 ## What it is
 
+**Research reference:** [Evacuation inputs — from Mariupol to the four-city
+model](docs/EVACUATION_INPUT_REFERENCE.md) consolidates the variables, definitions,
+assumptions, and gaps, with links to their code, data, and project-history sources.
+
 Two existing pieces of work, joined:
 
 | From | What it contributes |
@@ -365,6 +369,7 @@ src/app.js          wiring, clock, statistics
 tools/fetch_city.py builds a city pack from OSM: buildings, roads, routes
 data/cities/<id>/   one pack per city
 docs/METHOD.md      what is real, what is modelled, what is illustrative
+docs/EVACUATION_INPUT_REFERENCE.md  source-linked input dictionary and research handoff
 docs/AGENT_DECISIONS.md  every agent decision rule, route closures, what each dot means
 docs/LOCAL_DECISION_MODEL.md  running a decision model in-browser or on our own GPU
 ```
