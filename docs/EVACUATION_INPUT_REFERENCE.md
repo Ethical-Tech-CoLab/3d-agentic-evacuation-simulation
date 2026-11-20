@@ -8,6 +8,10 @@ model cannot yet answer. It is intended as a research handoff to the PhD
 researcher whose work on official evacuations under international humanitarian
 law (IHL), studying Mariupol, helped initiate this project.
 
+For a non-technical introduction, see [Evacuation, explained simply](EVACUATION_EXPLAINER.md).
+It records the researcher's original six-category presentation checklist as
+subsequently supplied by the project lead, and connects it to the work below.
+
 The summer-cohort origin and that research relationship are project context
 provided by the project lead. Mariupol was the starting case because available
 open intelligence and data made it possible to give assumptions concrete
